@@ -1,0 +1,8 @@
+{
+  "name": "crm-api",
+  "version": "1.0.0",
+  "description": "CRM API for MongoDB",
+  "dependencies": {
+    "mongodb": "^5.0.0"
+  }
+}
