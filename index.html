@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>外贸CRM · 云端同步版</title>
+    <title>外贸CRM · GitHub Gist 云端版</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     <style>
@@ -112,54 +112,45 @@
         }
         .btn-export { background: #2d6e4b; color: white; border: none; padding: 0.8rem 2rem;
             border-radius: 40px; display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; }
-        .btn-export-part { background: #a5652c; color: white; border: none; padding: 0.8rem 2rem;
-            border-radius: 40px; display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; }
         .btn-import { background: #8a6d3b; color: white; border: none; padding: 0.8rem 2rem;
             border-radius: 40px; display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; }
         .change-pwd-btn { background: #54738f; color: white; border: none; padding: 0.5rem 1rem;
             border-radius: 40px; font-size: 0.8rem; cursor: pointer; margin-left: 0.5rem; }
         
         .table-wrapper { overflow-x: auto; border-radius: 24px; border: 1px solid #e3eff8; margin: 1.8rem 0 1rem; }
-        table { width: 100%; border-collapse: collapse; min-width: 1650px; background: white; font-size: 0.9rem; }
+        table { width: 100%; border-collapse: collapse; min-width: 1200px; background: white; font-size: 0.9rem; }
         th { background: #f0f7fd; padding: 1rem 0.8rem; font-weight: 600; color: #1f4d6e; text-align: left; }
         td { padding: 1rem 0.8rem; border-bottom: 1px solid #e7f0f7; vertical-align: middle; }
-        tr:hover td { background: #f5faff; }
         .client-name { font-weight: 600; }
-        .company-sub { font-size: 0.78rem; color: #5e7f9c; display: block; }
         .badge { display: inline-block; padding: 0.3rem 0.8rem; border-radius: 30px; font-size: 0.75rem; }
         .intent-high { background: #ffebe7; color: #ac3f3f; }
         .intent-mid { background: #e2f0e8; color: #1b7355; }
-        .intent-low { background: #e9ecf0; color: #536e82; }
         .source-badge { background: #e1d7f0; color: #4f378b; }
-        .level-diamond { background: #f2e1b9; color: #7d5f2c; }
         .level-gold { background: #f8e3b3; color: #8b6b2b; }
-        .level-silver { background: #eaeef3; color: #456077; }
-        .level-basic { background: #eef2f5; color: #556c7c; }
-        .reminder-badge { background: #f1e5d3; color: #8a5a2a; font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 40px; display: inline-block; }
-        .overdue { color: #ba4b4b; font-weight: 600; }
-        .today { color: #1f7a5a; font-weight: 600; }
         .action-icons i { font-size: 1.2rem; color: #57809f; margin: 0 6px; cursor: pointer; }
         .action-icons i:hover { color: #0e4b6e; }
         .checkbox-col { width: 40px; text-align: center; }
         
         .form-panel {
-            background: #f9fdff; border-radius: 32px; padding: 2rem 2.5rem;
+            background: #f9fdff; border-radius: 32px; padding: 2rem;
             margin-top: 2rem; border: 1px solid #d3e6f5;
         }
-        .form-title { font-size: 1.5rem; font-weight: 600; margin-bottom: 1.8rem; color: #13445f; }
+        .form-title { font-size: 1.5rem; font-weight: 600; margin-bottom: 1.5rem; color: #13445f; }
         .grid-3 {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); gap: 1.2rem;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 1rem;
             margin-bottom: 1.5rem;
         }
-        .form-group label { display: block; font-size: 0.7rem; font-weight: 600; color: #3f688b; margin-bottom: 0.3rem; }
+        .form-group label { font-size: 0.7rem; font-weight: 600; color: #3f688b; }
         .form-group input, .form-group select, .form-group textarea {
-            width: 100%; padding: 0.7rem 1rem; border: 1px solid #c4d6e8;
-            border-radius: 20px; font-size: 0.9rem;
+            width: 100%; padding: 0.6rem; border: 1px solid #c4d6e8;
+            border-radius: 16px; font-size: 0.85rem;
         }
-        .btn-group { display: flex; gap: 1rem; margin-top: 2rem; }
+        .btn-group { display: flex; gap: 1rem; margin-top: 1rem; }
         .footer-note { text-align: center; margin-top: 2rem; color: #5d7f9a; }
-        .export-bar { display: flex; gap: 0.8rem; flex-wrap: wrap; }
-        .security-card { background: #e6f3fa; border-radius: 24px; padding: 1.5rem 2rem; margin-top: 2rem; border-left: 8px solid #0e4b6e; }
+        .sync-status {
+            background: #e6f3fa; padding: 8px 16px; border-radius: 40px;
+            font-size: 0.75rem; display: inline-flex; align-items: center; gap: 0.5rem;
+        }
         .save-toast {
             position: fixed; bottom: 30px; right: 30px; background: #0e4b6e; color: white;
             padding: 12px 24px; border-radius: 50px; z-index: 9999;
@@ -167,11 +158,7 @@
         }
         .save-toast.show { transform: translateY(0); opacity: 1; }
         #importFile { display: none; }
-        .sync-status {
-            background: #e6f3fa; padding: 8px 16px; border-radius: 40px;
-            font-size: 0.75rem; margin-left: 1rem; display: inline-flex; align-items: center; gap: 0.5rem;
-        }
-        .sync-status i { font-size: 0.8rem; }
+        .cloud-icon { color: #2d6e4b; margin-right: 4px; }
     </style>
 </head>
 <body>
@@ -194,14 +181,13 @@
                     <div class="logo-icon"><i class="fas fa-cloud-upload-alt"></i></div>
                     <div class="title">
                         <h1>刀具·泵阀 CRM <button id="changePwdBtn" class="change-pwd-btn"><i class="fas fa-key"></i> 修改密码</button></h1>
-                        <span><i class="fas fa-database"></i> 云端同步版 | 多设备自动同步</span>
+                        <span><i class="fab fa-github"></i> GitHub Gist 云端同步 | 多设备自动同步</span>
                     </div>
                 </div>
                 <div class="stats">
                     <div class="stat-item"><span class="stat-value" id="totalClients">0</span> <span class="stat-label">总客户</span></div>
                     <div class="stat-item"><span class="stat-value" id="hotLeads">0</span> <span class="stat-label">高意向</span></div>
                     <div class="stat-item"><span class="stat-value" id="dueTodayCount">0</span> <span class="stat-label">今日待跟进</span></div>
-                    <div class="stat-item"><span class="stat-value" id="overdueCount">0</span> <span class="stat-label">⏰ 逾期</span></div>
                 </div>
             </div>
 
@@ -210,15 +196,15 @@
                     <div class="search-area">
                         <div class="search-box">
                             <i class="fas fa-search"></i>
-                            <input type="text" id="searchInput" placeholder="搜索名称/行业/来源...">
+                            <input type="text" id="searchInput" placeholder="搜索姓名/公司/行业...">
                             <button id="searchBtn">筛选</button>
                         </div>
                         <button class="btn-secondary" id="clearSearchBtn"><i class="fas fa-redo-alt"></i> 重置</button>
                         <div class="export-bar">
-                            <button class="btn-export" id="exportAllBtn"><i class="fas fa-file-excel"></i> 导出全部</button>
+                            <button class="btn-export" id="exportAllBtn"><i class="fas fa-file-excel"></i> 导出Excel</button>
                             <button class="btn-import" id="importBtn"><i class="fas fa-file-import"></i> 导入Excel</button>
                         </div>
-                        <div id="syncStatus" class="sync-status"><i class="fas fa-cloud-upload-alt"></i> 已同步云端</div>
+                        <div id="syncStatus" class="sync-status"><i class="fas fa-cloud-upload-alt cloud-icon"></i> 已同步云端</div>
                     </div>
                     <button class="btn-primary" id="showAddFormBtn"><i class="fas fa-plus-circle"></i> 新增客户</button>
                 </div>
@@ -227,8 +213,7 @@
 
                 <div class="table-wrapper">
                     <table>
-                        <thead>
-                            <tr><th class="checkbox-col"><input type="checkbox" id="selectAllCheckbox"></th><th>客户/公司</th><th>行业/产品</th><th>等级/意向</th><th>来源</th><th>最近跟进</th><th>下次跟进</th><th>操作</th></thead>
+                        <thead><tr><th class="checkbox-col"><input type="checkbox" id="selectAllCheckbox"></th><th>客户/公司</th><th>行业</th><th>等级/意向</th><th>来源</th><th>最近跟进</th><th>下次跟进</th><th>操作</th></tr></thead>
                         <tbody id="tableBody"></tbody>
                     </table>
                 </div>
@@ -260,23 +245,14 @@
                 </div>
             </div>
 
-            <div class="security-card">
-                <h3><i class="fas fa-cloud"></i> 云端同步 · 跨设备自动同步</h3>
-                <div class="security-option">
-                    <p>✅ 任何电脑打开网址，数据自动同步</p>
-                    <p>✅ 换电脑不需要手动导出/导入</p>
-                    <p>✅ 数据永久保存在MongoDB云端</p>
-                    <p>✅ 密码保护 + 云端备份</p>
-                </div>
-            </div>
-            <div class="footer-note">🔒 云端同步版 | 数据自动保存到MongoDB | 多设备自动同步</div>
+            <div class="footer-note">🔒 GitHub Gist 云端同步 | 数据自动保存 | 任何电脑打开自动同步 | 换电脑数据不丢失</div>
         </div>
     </div>
 
     <script>
-        // ========== MongoDB 配置 ==========
-        const MONGODB_URI = "mongodb+srv://crm_user:Crm2025DB@cluster0.vwribdt.mongodb.net/?retryWrites=true&w=majority";
-        const API_URL = "https://crm-api.vercel.app/api/clients";
+        // ========== GitHub Gist 配置 ==========
+        const GIST_ID = "c2f75b6607d558cb1a42ab05c34fd354";
+        const GITHUB_TOKEN = "ghp_tGhxX7bptw7kve5crZh1YNNxlU6hFUr2XcvcQ";
         
         // ========== 密码 ==========
         const DEFAULT_PWD = "crm2025";
@@ -306,55 +282,64 @@
             alert("✅ 密码修改成功");
         }
         
-        // ========== CRM 数据管理 ==========
+        // ========== 云端同步函数 ==========
         let clients = [];
         let searchKeyword = "";
         let editId = null;
         
-        function getToday() { return new Date().toISOString().slice(0,10); }
-        function genId() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
-        
-        async function loadFromCloud() {
+        async function loadFromGist() {
             try {
-                const response = await fetch('/api/clients');
+                const response = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+                    headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
+                });
                 if (response.ok) {
                     const data = await response.json();
-                    if (data.success && data.clients) {
-                        clients = data.clients;
+                    const content = data.files['crm_data.json']?.content;
+                    if (content) {
+                        clients = JSON.parse(content);
+                        if (!Array.isArray(clients)) clients = [];
                         render();
-                        updateSyncStatus(true);
+                        updateSyncStatus(true, "已同步云端");
                         return;
                     }
                 }
-                throw new Error("云端加载失败");
+                throw new Error("加载失败");
             } catch (e) {
-                console.log("使用本地存储");
+                console.log("使用本地备份");
                 loadLocal();
-                updateSyncStatus(false);
+                updateSyncStatus(false, "离线模式");
             }
         }
         
-        async function saveToCloud() {
+        async function saveToGist() {
             try {
-                const response = await fetch('/api/clients', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ clients: clients })
+                const content = JSON.stringify(clients, null, 2);
+                const response = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `token ${GITHUB_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        files: {
+                            'crm_data.json': { content: content }
+                        }
+                    })
                 });
                 if (response.ok) {
-                    updateSyncStatus(true);
+                    updateSyncStatus(true, "已同步云端");
                     showToast("已同步到云端");
                 } else {
-                    updateSyncStatus(false);
+                    updateSyncStatus(false, "同步失败");
                 }
             } catch (e) {
-                updateSyncStatus(false);
+                updateSyncStatus(false, "离线模式");
             }
         }
         
-        function saveLocal() { localStorage.setItem("crm_local_backup", JSON.stringify(clients)); }
+        function saveLocal() { localStorage.setItem("crm_backup", JSON.stringify(clients)); }
         function loadLocal() { 
-            const stored = localStorage.getItem("crm_local_backup");
+            const stored = localStorage.getItem("crm_backup");
             if (stored) clients = JSON.parse(stored);
             else clients = getDefaultData();
             render();
@@ -362,18 +347,18 @@
         
         function getDefaultData() {
             return [
-                { id: "c1", name: "Marco Rossi", company: "Euro Fashion", country: "Germany", industry: "数控刀具·铣刀", productLine: "硬质合金铣刀", scale: "51-200人", clientLevel: "金牌🥇", intention: "高意向🔥", source: "官网", email: "m.rossi@efashion.de", phone: "+49 170 123456", followDate: "2025-06-10", nextFollowDate: "2025-06-20", nextAction: "确认样品", followNote: "样品已寄" },
-                { id: "c2", name: "李瑶", company: "Shenzhen Ease", country: "China", industry: "塑料切粒刀", productLine: "水下切粒刀", scale: "11-50人", clientLevel: "银牌🥈", intention: "中意向⭐", source: "B端平台", email: "liyao@ease.cn", phone: "+86 135 0000 1111", followDate: "2025-06-14", nextFollowDate: "2025-06-18", nextAction: "重新报价", followNote: "询价20尺柜" }
+                { id: "1", name: "Marco Rossi", company: "Euro Fashion", country: "Germany", industry: "数控刀具·铣刀", productLine: "硬质合金铣刀", scale: "51-200人", clientLevel: "金牌🥇", intention: "高意向🔥", source: "官网", email: "m.rossi@efashion.de", phone: "+49 170 123456", followDate: "2025-06-10", nextFollowDate: "2025-06-20", nextAction: "确认样品", followNote: "样品已寄" },
+                { id: "2", name: "李瑶", company: "Shenzhen Ease", country: "China", industry: "塑料切粒刀", productLine: "水下切粒刀", scale: "11-50人", clientLevel: "银牌🥈", intention: "中意向⭐", source: "B端平台", email: "liyao@ease.cn", phone: "+86 135 0000 1111", followDate: "2025-06-14", nextFollowDate: "2025-06-18", nextAction: "重新报价", followNote: "询价20尺柜" }
             ];
         }
         
-        function updateSyncStatus(isOnline) {
+        function updateSyncStatus(isOnline, msg) {
             const el = document.getElementById("syncStatus");
             if (isOnline) {
-                el.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> 已同步云端';
+                el.innerHTML = '<i class="fas fa-cloud-upload-alt cloud-icon"></i> ' + msg;
                 el.style.background = "#d9e6cf";
             } else {
-                el.innerHTML = '<i class="fas fa-database"></i> 本地模式';
+                el.innerHTML = '<i class="fas fa-database"></i> ' + msg;
                 el.style.background = "#f0e2d4";
             }
         }
@@ -385,6 +370,9 @@
             setTimeout(() => toast.classList.remove("show"), 2000);
         }
         
+        function getToday() { return new Date().toISOString().slice(0,10); }
+        function genId() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
+        
         function render() {
             let filtered = clients;
             if (searchKeyword) {
@@ -394,36 +382,26 @@
             let html = "";
             const today = getToday();
             filtered.forEach(c => {
-                let intentClass = c.intention.includes("高") ? "intent-high" : (c.intention.includes("中") ? "intent-mid" : "intent-low");
-                let levelClass = c.clientLevel.includes("钻石") ? "level-diamond" : (c.clientLevel.includes("金牌") ? "level-gold" : (c.clientLevel.includes("银牌") ? "level-silver" : "level-basic"));
-                let nextClass = "";
-                if (c.nextFollowDate) {
-                    if (c.nextFollowDate < today) nextClass = "overdue";
-                    else if (c.nextFollowDate === today) nextClass = "today";
-                }
+                let intentClass = c.intention.includes("高") ? "intent-high" : "intent-mid";
+                let levelClass = c.clientLevel.includes("金") ? "level-gold" : "";
                 html += `<tr>
                     <td class="checkbox-col"><input type="checkbox" class="client-checkbox" value="${c.id}"></td>
-                    <td><span class="client-name">${escapeHtml(c.name)}</span><span class="company-sub">${escapeHtml(c.company) || '—'} | ${escapeHtml(c.country)}</span></td>
+                    <td><strong>${escapeHtml(c.name)}</strong><br><small>${escapeHtml(c.company) || '—'} | ${escapeHtml(c.country)}</small></td>
                     <td>${escapeHtml(c.industry) || '—'}<br><small>${escapeHtml(c.productLine) || ''}</small></td>
                     <td><span class="badge ${levelClass}">${escapeHtml(c.clientLevel)}</span> <span class="badge ${intentClass}">${escapeHtml(c.intention)}</span></td>
                     <td><span class="badge source-badge">${escapeHtml(c.source) || '展会'}</span></td>
                     <td>${c.followDate || '—'}<br><small>${(c.followNote || '').substring(0,20)}</small></td>
-                    <td class="${nextClass}">${c.nextFollowDate || '—'}${c.nextFollowDate === today ? ' 🔔今日' : (c.nextFollowDate < today ? ' ⚠️逾期' : '')}</td>
-                    <td class="action-icons">
-                        <i class="fas fa-edit" onclick="editClient('${c.id}')"></i>
-                        <i class="fas fa-clock" onclick="quickFollow('${c.id}')"></i>
-                        <i class="fas fa-trash-alt" onclick="deleteClient('${c.id}')"></i>
-                    </td>
+                    <td>${c.nextFollowDate || '—'}${c.nextFollowDate === today ? ' 🔔' : (c.nextFollowDate < today ? ' ⚠️' : '')}</td>
+                    <td class="action-icons"><i class="fas fa-edit" onclick="editClient('${c.id}')"></i><i class="fas fa-clock" onclick="quickFollow('${c.id}')"></i><i class="fas fa-trash-alt" onclick="deleteClient('${c.id}')"></i></td>
                 </tr>`;
             });
             document.getElementById("tableBody").innerHTML = html || '<tr><td colspan="8" style="text-align:center;">暂无客户</td></tr>';
             document.getElementById("totalClients").innerText = clients.length;
             document.getElementById("hotLeads").innerText = clients.filter(c => c.intention.includes("高")).length;
             document.getElementById("dueTodayCount").innerText = clients.filter(c => c.nextFollowDate === today).length;
-            document.getElementById("overdueCount").innerText = clients.filter(c => c.nextFollowDate && c.nextFollowDate < today).length;
         }
         
-        function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, function(m){ return m==='&'?'&amp;':m==='<'?'&lt;':m==='>'?'&gt;':m;}); }
+        function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => m==='&'?'&amp;':m==='<'?'&lt;':m==='>'?'&gt;':m); }
         
         function resetForm() {
             document.getElementById("clientName").value = "";
@@ -447,7 +425,7 @@
             document.getElementById("formPanel").style.display = "none";
         }
         
-        function saveClient() {
+        async function saveClient() {
             let name = document.getElementById("clientName").value.trim();
             if (!name) { alert("姓名不能为空"); return; }
             let client = {
@@ -475,7 +453,7 @@
                 clients.push(client);
             }
             saveLocal();
-            saveToCloud();
+            await saveToGist();
             render();
             resetForm();
             showToast("已保存并同步云端");
@@ -505,17 +483,17 @@
             document.getElementById("formPanel").style.display = "block";
         };
         
-        window.deleteClient = function(id) {
+        window.deleteClient = async function(id) {
             if (confirm("确定删除？")) {
                 clients = clients.filter(c => c.id !== id);
                 saveLocal();
-                saveToCloud();
+                await saveToGist();
                 render();
                 showToast("已删除");
             }
         };
         
-        window.quickFollow = function(id) {
+        window.quickFollow = async function(id) {
             let c = clients.find(c => c.id === id);
             if (!c) return;
             let newDate = prompt("下次跟进日期:", c.nextFollowDate || getToday());
@@ -525,7 +503,7 @@
             c.nextFollowDate = newDate;
             c.nextAction = newAction;
             saveLocal();
-            saveToCloud();
+            await saveToGist();
             render();
             showToast("已更新");
         };
@@ -574,7 +552,7 @@
                 if (confirm(`导入 ${imported.length} 条，确定替换？取消则追加`)) clients = imported;
                 else clients = [...clients, ...imported];
                 saveLocal();
-                saveToCloud();
+                saveToGist();
                 render();
                 showToast("导入成功");
             };
@@ -582,7 +560,7 @@
         }
         
         function initCRM() {
-            loadFromCloud();
+            loadFromGist();
             document.getElementById("searchBtn").onclick = () => { searchKeyword = document.getElementById("searchInput").value; render(); };
             document.getElementById("clearSearchBtn").onclick = () => { document.getElementById("searchInput").value = ""; searchKeyword = ""; render(); };
             document.getElementById("showAddFormBtn").onclick = () => { resetForm(); document.getElementById("formPanel").style.display = "block"; };
