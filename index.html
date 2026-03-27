@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>外贸CRM · 密码保护版</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #f0f6fc;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            padding: 2rem;
+            color: #1c2d3f;
+        }
+        .lock-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(14, 75, 110, 0.95);
+            backdrop-filter: blur(12px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .lock-card {
+            background: white;
+            border-radius: 2rem;
+            padding: 2rem;
+            max-width: 380px;
+            width: 90%;
+            text-align: center;
+        }
+        .lock-card h2 { color: #0e4b6e; margin-bottom: 0.5rem; }
+        .lock-card p { color: #54738f; margin-bottom: 1rem; }
+        .lock-input {
+            width: 100%;
+            padding: 0.8rem;
+            border-radius: 60px;
+            border: 1px solid #c4d6e8;
+            margin: 0.5rem 0;
+            text-align: center;
+            font-size: 1rem;
+        }
+        .lock-btn {
+            background: #0e4b6e;
+            color: white;
+            border: none;
+            padding: 0.8rem;
+            border-radius: 60px;
+            width: 100%;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        .lock-error { color: #c44; margin-top: 0.8rem; }
+        .main-app { display: none; max-width: 1400px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
+        .logo-area { display: flex; align-items: center; gap: 0.8rem; }
+        .logo-icon { background: #0e4b6e; color: white; width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
+        .title h1 { font-size: 1.4rem; }
+        .title small { font-size: 0.7rem; color: #54738f; }
+        .stats { background: white; padding: 0.5rem 1.2rem; border-radius: 40px; display: flex; gap: 1.2rem; }
+        .stats span { font-weight: bold; color: #0e4b6e; font-size: 1.2rem; }
+        .main-card { background: white; border-radius: 1.5rem; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
+        .search-box { background: #f3f9ff; border-radius: 40px; display: flex; padding: 0.3rem; border: 1px solid #cde0ed; }
+        .search-box input { border: none; background: transparent; padding: 0.5rem 1rem; width: 220px; outline: none; }
+        .search-box button { background: #0e4b6e; color: white; border: none; padding: 0.4rem 1.2rem; border-radius: 40px; cursor: pointer; }
+        .btn-group { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        button { background: #0e4b6e; color: white; border: none; padding: 0.5rem 1rem; border-radius: 40px; cursor: pointer; font-size: 0.85rem; }
+        .btn-green { background: #2d6e4b; }
+        .btn-brown { background: #8a6d3b; }
+        .btn-gray { background: #54738f; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { padding: 0.7rem 0.5rem; text-align: left; border-bottom: 1px solid #eef2f7; }
+        th { background: #f5f9ff; color: #1f4d6e; }
+        .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.7rem; }
+        .badge-high { background: #ffebe7; color: #ac3f3f; }
+        .badge-mid { background: #e2f0e8; color: #1b7355; }
+        .badge-gold { background: #f8e3b3; color: #8b6b2b; }
+        .action-icons i { margin: 0 4px; cursor: pointer; color: #6c8fb0; }
+        .form-panel { background: white; border-radius: 1.5rem; padding: 1.5rem; margin-top: 1rem; border: 1px solid #e3eff8; }
+        .form-panel h3 { margin-bottom: 1rem; color: #0e4b6e; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.8rem; }
+        .form-grid input, .form-grid select, .form-grid textarea { width: 100%; padding: 0.5rem; border: 1px solid #c4d6e8; border-radius: 12px; }
+        .form-actions { display: flex; gap: 0.8rem; margin-top: 1rem; }
+        .toast { position: fixed; bottom: 20px; right: 20px; background: #0e4b6e; color: white; padding: 8px 16px; border-radius: 30px; opacity: 0; transition: 0.3s; z-index: 999; }
+        .toast.show { opacity: 1; }
+        footer { text-align: center; margin-top: 1.5rem; font-size: 0.7rem; color: #6c8fb0; }
+        #fileInput { display: none; }
+    </style>
+</head>
+<body>
+<div id="lockScreen" class="lock-screen">
+    <div class="lock-card">
+        <h2><i class="fas fa-lock"></i> 外贸CRM</h2>
+        <p>请输入密码</p>
+        <input type="password" id="passwordInput" class="lock-input" placeholder="密码" autofocus>
+        <button id="unlockBtn" class="lock-btn">进入系统</button>
+        <div id="lockError" class="lock-error"></div>
+    </div>
+</div>
+<div id="mainApp" class="main-app">
+    <div class="header">
+        <div class="logo-area">
+            <div class="logo-icon"><i class="fas fa-tools"></i></div>
+            <div class="title"><h1>刀具·泵阀 CRM</h1><small>密码保护版 | 一键导入/导出</small></div>
+        </div>
+        <div class="stats"><div><span id="totalCount">0</span> 客户</div><div><span id="hotCount">0</span> 高意向</div></div>
+    </div>
+    <div class="main-card">
+        <div class="toolbar">
+            <div class="search-box"><i class="fas fa-search"></i><input type="text" id="searchInput" placeholder="搜索姓名/公司..."><button id="searchBtn">搜索</button></div>
+            <div class="btn-group">
+                <button id="exportBtn" class="btn-green"><i class="fas fa-file-excel"></i> 导出全部</button>
+                <button id="importBtn" class="btn-brown"><i class="fas fa-file-import"></i> 导入Excel</button>
+                <button id="changePwdBtn" class="btn-gray"><i class="fas fa-key"></i> 修改密码</button>
+                <button id="addBtn"><i class="fas fa-plus"></i> 新增客户</button>
+            </div>
+        </div>
+        <input type="file" id="fileInput" accept=".xlsx,.xls">
+        <div style="overflow-x:auto;"><table><thead><tr><th>姓名</th><th>公司</th><th>行业</th><th>等级</th><th>意向</th><th>下次跟进</th><th>操作</th></tr></thead><tbody id="tableBody"></tbody></table></div>
+    </div>
+    <div id="formPanel" class="form-panel" style="display:none">
+        <h3 id="formTitle">新增客户</h3>
+        <div class="form-grid">
+            <input type="text" id="name" placeholder="姓名 *">
+            <input type="text" id="company" placeholder="公司">
+            <input type="text" id="country" placeholder="国家" value="China">
+            <input type="text" id="industry" placeholder="行业（数控刀具/磁力泵等）">
+            <select id="level"><option>钻石⭐</option><option>金牌🥇</option><option>银牌🥈</option><option selected>基础⚪</option></select>
+            <select id="intention"><option>高意向🔥</option><option selected>中意向⭐</option><option>低意向🍃</option></select>
+            <input type="email" id="email" placeholder="邮箱">
+            <input type="text" id="phone" placeholder="电话">
+            <input type="date" id="followDate" placeholder="最近跟进">
+            <input type="date" id="nextFollow" placeholder="下次跟进">
+            <input type="text" id="nextAction" placeholder="下一步动作">
+            <textarea id="note" rows="2" placeholder="跟进记录"></textarea>
+            <input type="hidden" id="editId">
+        </div>
+        <div class="form-actions"><button id="saveBtn">保存</button><button id="cancelBtn" class="btn-outline">取消</button></div>
+    </div>
+    <footer>🔒 密码保护 | 数据自动保存 | 导出Excel备份 | 导入恢复数据</footer>
+    <div id="toast" class="toast">✓ 已保存</div>
+</div>
+<script>
+    const DEFAULT_PWD = "crm2025";
+    let currentPwd = localStorage.getItem("crm_password") || DEFAULT_PWD;
+    function unlock() { let pwd = document.getElementById("passwordInput").value; if(pwd === currentPwd) { document.getElementById("lockScreen").style.display = "none"; document.getElementById("mainApp").style.display = "block"; initCRM(); } else { document.getElementById("lockError").innerText = "❌ 密码错误"; } }
+    function changePassword() { let old = prompt("请输入当前密码:"); if(old !== currentPwd) { alert("当前密码错误"); return; } let newPwd = prompt("新密码（至少4位）:"); if(!newPwd || newPwd.length < 4) { alert("密码至少需要4位"); return; } let confirmPwd = prompt("确认新密码:"); if(newPwd !== confirmPwd) { alert("两次密码不一致"); return; } currentPwd = newPwd; localStorage.setItem("crm_password", currentPwd); alert("✅ 密码修改成功！下次登录请使用新密码"); }
+    const STORAGE_KEY = "crm_data"; let clients = []; let searchText = ""; let editId = null;
+    function getDefaultData() { return [{ id: "1", name: "Marco Rossi", company: "Euro Fashion", country: "Germany", industry: "数控刀具·铣刀", level: "金牌🥇", intention: "高意向🔥", email: "m.rossi@efashion.de", phone: "+49 170 123456", followDate: "2025-06-10", nextFollow: "2025-06-20", nextAction: "确认样品反馈", note: "样品已寄出" }, { id: "2", name: "李瑶", company: "Shenzhen Ease", country: "China", industry: "塑料切粒刀", level: "银牌🥈", intention: "中意向⭐", email: "liyao@ease.cn", phone: "+86 135 0000 1111", followDate: "2025-06-14", nextFollow: "2025-06-18", nextAction: "重新报价CIF", note: "询价20尺柜" }]; }
+    function loadData() { let stored = localStorage.getItem(STORAGE_KEY); if(stored) clients = JSON.parse(stored); else clients = getDefaultData(); render(); }
+    function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(clients)); showToast("已保存"); }
+    function showToast(msg) { let t = document.getElementById("toast"); t.innerText = msg || "✓ 已保存"; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 1500); }
+    function getToday() { return new Date().toISOString().slice(0,10); }
+    function genId() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
+    function render() { let filtered = clients; if(searchText) { let kw = searchText.toLowerCase(); filtered = clients.filter(c => c.name.toLowerCase().includes(kw) || (c.company && c.company.toLowerCase().includes(kw))); } let html = ""; filtered.forEach(c => { let intentClass = c.intention.includes("高") ? "badge-high" : "badge-mid"; let levelClass = c.level.includes("金") ? "badge-gold" : ""; html += `<tr><td><strong>${escapeHtml(c.name)}</strong><br><small>${escapeHtml(c.company || '')}</small></td><td>${escapeHtml(c.industry || '-')}</td><td><span class="badge ${levelClass}">${escapeHtml(c.level)}</span></td><td><span class="badge ${intentClass}">${escapeHtml(c.intention)}</span></td><td>${c.nextFollow || '-'}</td><td class="action-icons"><i class="fas fa-edit" onclick="editClient('${c.id}')"></i><i class="fas fa-trash-alt" onclick="deleteClient('${c.id}')"></i></td></tr>`; }); document.getElementById("tableBody").innerHTML = html || '<tr><td colspan="6" style="text-align:center;">暂无客户数据</td></tr>'; document.getElementById("totalCount").innerText = clients.length; document.getElementById("hotCount").innerText = clients.filter(c => c.intention.includes("高")).length; }
+    function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, function(m){ if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+    function resetForm() { document.getElementById("name").value = ""; document.getElementById("company").value = ""; document.getElementById("country").value = "China"; document.getElementById("industry").value = ""; document.getElementById("level").value = "基础⚪"; document.getElementById("intention").value = "中意向⭐"; document.getElementById("email").value = ""; document.getElementById("phone").value = ""; document.getElementById("followDate").value = getToday(); document.getElementById("nextFollow").value = ""; document.getElementById("nextAction").value = ""; document.getElementById("note").value = ""; editId = null; document.getElementById("editId").value = ""; document.getElementById("formTitle").innerText = "新增客户"; document.getElementById("formPanel").style.display = "none"; }
+    function saveClient() { let name = document.getElementById("name").value.trim(); if(!name) { alert("姓名不能为空"); return; } let client = { id: editId || genId(), name: name, company: document.getElementById("company").value.trim(), country: document.getElementById("country").value.trim(), industry: document.getElementById("industry").value.trim(), level: document.getElementById("level").value, intention: document.getElementById("intention").value, email: document.getElementById("email").value.trim(), phone: document.getElementById("phone").value.trim(), followDate: document.getElementById("followDate").value, nextFollow: document.getElementById("nextFollow").value, nextAction: document.getElementById("nextAction").value.trim(), note: document.getElementById("note").value.trim() }; if(editId) { let idx = clients.findIndex(c => c.id === editId); if(idx !== -1) clients[idx] = client; } else { clients.push(client); } saveData(); render(); resetForm(); }
+    window.editClient = function(id) { let c = clients.find(c => c.id === id); if(!c) return; document.getElementById("name").value = c.name; document.getElementById("company").value = c.company || ""; document.getElementById("country").value = c.country || "China"; document.getElementById("industry").value = c.industry || ""; document.getElementById("level").value = c.level; document.getElementById("intention").value = c.intention; document.getElementById("email").value = c.email || ""; document.getElementById("phone").value = c.phone || ""; document.getElementById("followDate").value = c.followDate || getToday(); document.getElementById("nextFollow").value = c.nextFollow || ""; document.getElementById("nextAction").value = c.nextAction || ""; document.getElementById("note").value = c.note || ""; editId = c.id; document.getElementById("editId").value = c.id; document.getElementById("formTitle").innerText = "编辑客户"; document.getElementById("formPanel").style.display = "block"; };
+    window.deleteClient = function(id) { if(confirm("确定删除这条客户记录？")) { clients = clients.filter(c => c.id !== id); saveData(); render(); } };
+    function exportExcel() { if(!clients.length) { alert("没有数据可导出"); return; } let headers = ["姓名","公司","国家","行业","等级","意向","邮箱","电话","最近跟进","下次跟进","下一步动作","跟进记录"]; let data = clients.map(c => [c.name, c.company, c.country, c.industry, c.level, c.intention, c.email, c.phone, c.followDate, c.nextFollow, c.nextAction, c.note]); let ws = XLSX.utils.aoa_to_sheet([headers, ...data]); let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "外贸客户"); XLSX.writeFile(wb, `外贸客户_${getToday()}.xlsx`); showToast("导出成功"); }
+    function importExcel(file) { let reader = new FileReader(); reader.onload = function(e) { let wb = XLSX.read(new Uint8Array(e.target.result), { type: "array" }); let ws = wb.Sheets[wb.SheetNames[0]]; let rows = XLSX.utils.sheet_to_json(ws, { header: 1 }); if(rows.length < 2) { alert("文件无数据"); return; } let imported = []; for(let i=1; i<rows.length; i++) { let r = rows[i]; if(r[0]) { imported.push({ id: genId(), name: String(r[0]).trim(), company: r[1] ? String(r[1]).trim() : "", country: r[2] ? String(r[2]).trim() : "", industry: r[3] ? String(r[3]).trim() : "", level: r[4] ? String(r[4]).trim() : "基础⚪", intention: r[5] ? String(r[5]).trim() : "中意向⭐", email: r[6] ? String(r[6]).trim() : "", phone: r[7] ? String(r[7]).trim() : "", followDate: r[8] ? String(r[8]).trim() : "", nextFollow: r[9] ? String(r[9]).trim() : "", nextAction: r[10] ? String(r[10]).trim() : "", note: r[11] ? String(r[11]).trim() : "" }); } } if(imported.length === 0) { alert("没有有效数据"); return; } if(confirm(`导入 ${imported.length} 条数据，确定替换现有数据？\n点击取消则追加到现有数据后面`)) { clients = imported; } else { clients = [...clients, ...imported]; } saveData(); render(); showToast(`导入 ${imported.length} 条数据`); }; reader.readAsArrayBuffer(file); }
+    function initCRM() { loadData(); document.getElementById("searchBtn").onclick = () => { searchText = document.getElementById("searchInput").value; render(); }; document.getElementById("searchInput").onkeyup = (e) => { if(e.key === "Enter") { searchText = e.target.value; render(); } }; document.getElementById("addBtn").onclick = () => { resetForm(); document.getElementById("formPanel").style.display = "block"; }; document.getElementById("cancelBtn").onclick = resetForm; document.getElementById("saveBtn").onclick = saveClient; document.getElementById("exportBtn").onclick = exportExcel; document.getElementById("importBtn").onclick = () => document.getElementById("fileInput").click(); document.getElementById("fileInput").onchange = (e) => { if(e.target.files[0]) importExcel(e.target.files[0]); e.target.value = ""; }; document.getElementById("changePwdBtn").onclick = changePassword; }
+    document.getElementById("unlockBtn").onclick = unlock;
+    document.getElementById("passwordInput").addEventListener("keypress", e => { if(e.key === "Enter") unlock(); });
+</script>
+</body>
+</html>
