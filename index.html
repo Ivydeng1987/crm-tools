@@ -3,11 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>外贸CRM · 腾讯云版</title>
+    <title>外贸CRM · 云端版</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
-    <!-- 腾讯云 SDK -->
-    <script src="https://imgcache.qq.com/qcloud/tcbjs/2.0.0/tcb.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -121,7 +119,7 @@
                     <div class="logo-icon"><i class="fas fa-cloud-upload-alt"></i></div>
                     <div class="title">
                         <h1>刀具·泵阀 CRM <button id="changePwdBtn" class="change-pwd-btn"><i class="fas fa-key"></i> 修改密码</button></h1>
-                        <span><i class="fab fa-tencent-weibo"></i> 腾讯云开发 | 多设备自动同步</span>
+                        <span><i class="fas fa-database"></i> JSONBin 云端同步 | 多设备自动同步</span>
                     </div>
                 </div>
                 <div class="stats">
@@ -153,9 +151,9 @@
 
                 <div class="table-wrapper">
                     <table id="clientTable">
-                        <thead>发展<th class="checkbox-col"><input type="checkbox" id="selectAllCheckbox"></th><th>客户/公司</th><th>行业</th><th>等级/意向</th><th>来源</th><th>最近跟进</th><th>下次跟进</th><th>操作</th> </thead>
+                        <thead> <th class="checkbox-col"><input type="checkbox" id="selectAllCheckbox"></th><th>客户/公司</th><th>行业</th><th>等级/意向</th><th>来源</th><th>最近跟进</th><th>下次跟进</th><th>操作</th> </thead>
                         <tbody id="tableBody"></tbody>
-                     </table>
+                    </table>
                 </div>
             </div>
 
@@ -185,20 +183,19 @@
                 </div>
             </div>
 
-            <div class="footer-note">🔒 腾讯云开发 | 任何电脑打开自动同步 | 换电脑数据不丢失</div>
+            <div class="footer-note">🔒 JSONBin 云端同步 | 任何电脑打开自动同步 | 换电脑数据不丢失</div>
         </div>
     </div>
 
     <script>
-        // ========== 腾讯云开发配置 ==========
-        const ENV_ID = "crm-1987-3g0a196x6eb649dd";
+        // ========== JSONBin 配置 ==========
+        const BIN_ID = "69ca405a36566621a85fc22b";
+        const API_KEY = "$2a$10$c/Ws5/Q7Qhve2S0yX1tBheXQhPGIQ4fDhvNcm6hoOIqN77H.2txgu";
         
         // ========== 密码 ==========
         const DEFAULT_PWD = "crm2025";
         let currentPwd = localStorage.getItem("crm_password") || DEFAULT_PWD;
         
-        let app = null;
-        let db = null;
         let clients = [];
         let searchKeyword = "";
         let editId = null;
@@ -209,7 +206,7 @@
             if (checkPwd(pwd)) {
                 document.getElementById("lockScreen").style.display = "none";
                 document.getElementById("mainApp").style.display = "block";
-                initCloud();
+                initCRM();
             } else {
                 document.getElementById("lockError").innerText = "❌ 密码错误";
             }
@@ -227,82 +224,43 @@
             alert("✅ 密码修改成功");
         }
         
-        async function initCloud() {
-            try {
-                // 等待 SDK 加载
-                if (typeof tcb === 'undefined') {
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                }
-                app = tcb.init({ env: ENV_ID });
-                db = app.database();
-                await loadFromCloud();
-                updateSyncStatus(true, "已连接云端");
-            } catch (e) {
-                console.error("云开发初始化失败", e);
-                updateSyncStatus(false, "离线模式");
-                loadLocal();
-            }
-        }
-        
+        // ========== JSONBin 云端同步 ==========
         async function loadFromCloud() {
             try {
-                const res = await db.collection("clients").get();
-                clients = res.data.map(item => ({
-                    id: item._id,
-                    name: item.name || "",
-                    company: item.company || "",
-                    country: item.country || "",
-                    industry: item.industry || "",
-                    productLine: item.productLine || "",
-                    scale: item.scale || "11-50人",
-                    clientLevel: item.clientLevel || "基础⚪",
-                    intention: item.intention || "中意向⭐",
-                    source: item.source || "展会",
-                    email: item.email || "",
-                    phone: item.phone || "",
-                    followDate: item.followDate || "",
-                    nextFollowDate: item.nextFollowDate || "",
-                    nextAction: item.nextAction || "",
-                    followNote: item.followNote || ""
-                }));
-                render();
-                updateSyncStatus(true, "已同步云端");
+                const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                    headers: { 'X-Master-Key': API_KEY }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    clients = data.record.clients || [];
+                    render();
+                    updateSyncStatus(true, "已同步云端");
+                } else {
+                    throw new Error("加载失败");
+                }
             } catch (e) {
-                console.error("加载失败", e);
+                console.log("加载云端失败，使用本地备份", e);
                 loadLocal();
+                updateSyncStatus(false, "离线模式");
             }
         }
         
         async function saveToCloud() {
-            if (!db) return;
             try {
-                // 先清空所有数据
-                const all = await db.collection("clients").get();
-                for (let item of all.data) {
-                    await db.collection("clients").doc(item._id).remove();
+                const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': API_KEY
+                    },
+                    body: JSON.stringify({ clients: clients })
+                });
+                if (response.ok) {
+                    updateSyncStatus(true, "已同步云端");
+                    showToast("已同步到云端");
+                } else {
+                    updateSyncStatus(false, "同步失败");
                 }
-                // 重新插入
-                for (let client of clients) {
-                    await db.collection("clients").add({
-                        name: client.name,
-                        company: client.company,
-                        country: client.country,
-                        industry: client.industry,
-                        productLine: client.productLine,
-                        scale: client.scale,
-                        clientLevel: client.clientLevel,
-                        intention: client.intention,
-                        source: client.source,
-                        email: client.email,
-                        phone: client.phone,
-                        followDate: client.followDate,
-                        nextFollowDate: client.nextFollowDate,
-                        nextAction: client.nextAction,
-                        followNote: client.followNote
-                    });
-                }
-                updateSyncStatus(true, "已同步云端");
-                showToast("已同步到云端");
             } catch (e) {
                 console.error("保存失败", e);
                 updateSyncStatus(false, "同步失败");
@@ -531,18 +489,22 @@
             reader.readAsArrayBuffer(file);
         }
         
+        function initCRM() {
+            loadFromCloud();
+            document.getElementById("searchBtn").onclick = () => { searchKeyword = document.getElementById("searchInput").value; render(); };
+            document.getElementById("clearSearchBtn").onclick = () => { document.getElementById("searchInput").value = ""; searchKeyword = ""; render(); };
+            document.getElementById("showAddFormBtn").onclick = () => { resetForm(); document.getElementById("formPanel").style.display = "block"; };
+            document.getElementById("cancelFormBtn").onclick = resetForm;
+            document.getElementById("saveClientBtn").onclick = saveClient;
+            document.getElementById("exportAllBtn").onclick = exportExcel;
+            document.getElementById("importBtn").onclick = () => document.getElementById("importFile").click();
+            document.getElementById("importFile").onchange = (e) => { if(e.target.files[0]) importExcel(e.target.files[0]); e.target.value = ""; };
+            document.getElementById("selectAllCheckbox").onclick = (e) => document.querySelectorAll(".client-checkbox").forEach(cb => cb.checked = e.target.checked);
+        }
+        
         document.getElementById("unlockBtn").onclick = unlock;
         document.getElementById("passwordInput").addEventListener("keypress", e => { if(e.key === "Enter") unlock(); });
         document.getElementById("changePwdBtn").onclick = changePwd;
-        document.getElementById("searchBtn").onclick = () => { searchKeyword = document.getElementById("searchInput").value; render(); };
-        document.getElementById("clearSearchBtn").onclick = () => { document.getElementById("searchInput").value = ""; searchKeyword = ""; render(); };
-        document.getElementById("showAddFormBtn").onclick = () => { resetForm(); document.getElementById("formPanel").style.display = "block"; };
-        document.getElementById("cancelFormBtn").onclick = resetForm;
-        document.getElementById("saveClientBtn").onclick = saveClient;
-        document.getElementById("exportAllBtn").onclick = exportExcel;
-        document.getElementById("importBtn").onclick = () => document.getElementById("importFile").click();
-        document.getElementById("importFile").onchange = (e) => { if(e.target.files[0]) importExcel(e.target.files[0]); e.target.value = ""; };
-        document.getElementById("selectAllCheckbox").onclick = (e) => document.querySelectorAll(".client-checkbox").forEach(cb => cb.checked = e.target.checked);
     </script>
 </body>
 </html>
