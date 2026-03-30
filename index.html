@@ -190,7 +190,7 @@
     <script>
         // ========== JSONBin 配置 ==========
         const BIN_ID = "69ca405a36566621a85fc22b";
-        const API_KEY = "$2a$10$c/Ws5/Q7Qhve2S0yX1tBheXQhPGIQ4fDhvNcm6hoOIqN77H.2txgu";
+        const API_KEY = "$2a$10$Rf880vEKkJ5.QrQwXfjMXuNGnXNnqWSsh5Gj.D74Pj/Ru9LPezhVi";
         
         // ========== 密码 ==========
         const DEFAULT_PWD = "crm2025";
@@ -228,7 +228,7 @@
         async function loadFromCloud() {
             try {
                 const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                    headers: { 'X-Master-Key': API_KEY }
+                    headers: {'X-Access-Key': API_KEY }
                 });
                 if (response.ok) {
                     const data = await response.json();
@@ -251,7 +251,7 @@
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-Master-Key': API_KEY
+                        'X-Access-Key': API_KEY 
                     },
                     body: JSON.stringify({ clients: clients })
                 });
