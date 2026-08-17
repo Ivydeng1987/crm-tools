@@ -252,6 +252,7 @@
         // ========== 配置（Key已藏进Worker，不再暴露）==========
         const BIN_ID = "69ca405a36566621a85fc22b";
         const CUSTOMER_ORDER_BIN_ID = "6a7e7e1bda38895dfee28007"; // 客户下单系统Bin（只读，用于统计订单次数）
+        const QUOTATION_BIN_ID = "6a82ce05da38895dfeee1354"; // 报价系统Bin（只读，用于查看该客户的报价记录）
         const WORKER_URL = "https://sunlit-proxy.ivy-3fc.workers.dev";
         const ACCESS_TOKEN = "RBhCP4O1yvwxN7nB9oMoQCzuj2ZnF3M9daOE76fRVtk";
 
@@ -382,6 +383,43 @@
             customerOrderCache = { orders: [], customers: [] };
             return customerOrderCache;
         }
+
+        // ========== 只读拉取报价系统数据（用于查看某客户的报价记录）==========
+        let quotationCache = null;
+        async function fetchQuotationData() {
+            if (quotationCache) return quotationCache;
+            try {
+                let res = await fetch(`${WORKER_URL}/bin/${QUOTATION_BIN_ID}/latest`, { headers: { 'X-Access-Token': ACCESS_TOKEN } });
+                if (res.ok) {
+                    let json = await res.json();
+                    let r = json.record;
+                    if (r && typeof r === 'object' && Array.isArray(r.quotes)) {
+                        quotationCache = r.quotes.filter(q => !q.deleted);
+                        return quotationCache;
+                    }
+                }
+            } catch (e) { console.error('拉取报价系统数据失败:', e); }
+            quotationCache = [];
+            return quotationCache;
+        }
+
+        window.viewQuoteHistory = async function(id) {
+            let c = clients.find(c => c.id === id);
+            if (!c) return;
+            let allQuotes = await fetchQuotationData();
+            let matching = allQuotes.filter(q => q.customerCompany === c.company);
+            matching.sort((a, b) => (b.quoteDate || '').localeCompare(a.quoteDate || ''));
+
+            if (matching.length === 0) {
+                alert(`${c.company} 目前没有报价记录（匹配依据是CRM里的"公司"字段和报价系统里的客户名称完全一致，如果对不上匹配不到，检查一下两边公司名写法是否一致）`);
+                return;
+            }
+            let lines = matching.map(q => {
+                let itemCount = (q.items || []).length;
+                return `${q.quoteDate}　${q.quoteNo}　${q.series}　${itemCount}条货品`;
+            });
+            alert(`${c.company} 的报价记录（共${matching.length}份）：\n\n${lines.join('\n')}`);
+        };
 
         function updateSyncStatus(isOnline, msg) {
             const el = document.getElementById("syncStatus");
@@ -540,7 +578,7 @@
                     <td><span class="badge source-badge">${escapeHtml(c.source) || '展会'}</span></td>
                     <td>${lastFollow ? formatDate(lastFollow.date) : '—'}<br><small>${lastFollow ? escapeHtml((lastFollow.note||'').substring(0,20)) : ''}</small></td>
                     <td>${c.nextFollowDate || '—'}${c.nextFollowDate === today ? ' 🔔' : (c.nextFollowDate && c.nextFollowDate < today ? ' ⚠️' : '')}</td>
-                    <td class="action-icons"><i class="fas fa-edit" onclick="editClient('${c.id}')"></i><i class="fas fa-clock" onclick="quickFollow('${c.id}')"></i><i class="fas fa-trash-alt" onclick="deleteClient('${c.id}')"></i></td>
+                    <td class="action-icons"><i class="fas fa-edit" onclick="editClient('${c.id}')"></i><i class="fas fa-clock" onclick="quickFollow('${c.id}')"></i><i class="fas fa-file-invoice-dollar" onclick="viewQuoteHistory('${c.id}')" title="查看报价记录"></i><i class="fas fa-trash-alt" onclick="deleteClient('${c.id}')"></i></td>
                 </tr>`;
             });
             document.getElementById("tableBody").innerHTML = html || '<tr><td colspan="9" style="text-align:center;">暂无客户</td></tr>';
