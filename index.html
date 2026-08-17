@@ -162,6 +162,7 @@
                         <button class="btn-export" id="exportAllBtn"><i class="fas fa-file-excel"></i> 导出Excel</button>
                         <button class="btn-import" id="importBtn"><i class="fas fa-file-import"></i> 导入Excel</button>
                         <button class="btn-backup" id="backupBtn"><i class="fas fa-shield-alt"></i> 备份全部数据</button>
+                        <button class="btn-secondary" id="yearStatsBtn"><i class="fas fa-chart-bar"></i> 年度新客户统计</button>
                         <div id="syncStatus" class="sync-status"><i class="fas fa-cloud-upload-alt cloud-icon"></i> 同步中...</div>
                     </div>
                     <button class="btn-primary" id="showAddFormBtn"><i class="fas fa-plus-circle"></i> 新增客户</button>
@@ -181,8 +182,7 @@
                 <div class="form-title" id="formTitleText">新增外贸客户</div>
                 <div class="hint-box"><i class="fas fa-info-circle"></i> 客户分类（潜在/样品/老客户）会根据"关联下单系统客户"自动统计下单次数计算：0单=潜在客户，1单=样品客户，2单及以上=老客户。也可以手动改成固定值，覆盖自动判断（适合下单系统里还没补录的老客户历史数据）。</div>
                 <div class="grid-3">
-                    <div class="form-group"><label>姓名 *</label><input type="text" id="clientName"></div>
-                    <div class="form-group"><label>公司</label><input type="text" id="company"></div>
+                    <div class="form-group"><label>公司 *</label><input type="text" id="company"></div>
                     <div class="form-group"><label>关联下单系统客户（用于自动统计订单）</label><select id="linkedCustomerSelect"><option value="">-- 不关联 --</option></select></div>
                     <div class="form-group"><label>国家</label><input type="text" id="country" value="China"></div>
                     <div class="form-group"><label>主营行业</label><input type="text" id="industry"></div>
@@ -193,12 +193,28 @@
                     <div class="form-group"><label>客户来源</label><select id="source"><option>展会</option><option>网络搜索</option><option>客户推荐</option><option>社交媒体</option><option>官网</option><option>B端平台</option></select></div>
                     <div class="form-group"><label>分类覆盖（不选=自动判断）</label><select id="classOverride"><option value="">-- 自动判断 --</option><option value="潜在客户">强制：潜在客户</option><option value="样品客户">强制：样品客户</option><option value="老客户">强制：老客户</option></select></div>
                     <div class="form-group"><label>老客户跟进周期（天）</label><input type="number" id="followUpCycleDays" placeholder="如：90"></div>
-                    <div class="form-group"><label>邮箱</label><input type="email" id="email"></div>
-                    <div class="form-group"><label>电话</label><input type="text" id="phone"></div>
                     <div class="form-group"><label>下次跟进</label><input type="date" id="nextFollowDate"></div>
                     <div class="form-group"><label>下一步动作</label><input type="text" id="nextAction"></div>
                     <input type="hidden" id="editId">
                 </div>
+
+                <div class="form-group" style="margin-bottom:1rem;">
+                    <label>联系人（一家公司可以有多个联系人，点右侧+号添加）</label>
+                    <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+                        <thead>
+                            <tr>
+                                <th style="text-align:left;padding:6px 8px;background:#f0f7fd;border-radius:8px 0 0 8px;">姓名</th>
+                                <th style="text-align:left;padding:6px 8px;background:#f0f7fd;">职位</th>
+                                <th style="text-align:left;padding:6px 8px;background:#f0f7fd;">邮箱</th>
+                                <th style="text-align:left;padding:6px 8px;background:#f0f7fd;">电话</th>
+                                <th style="padding:6px 8px;background:#f0f7fd;border-radius:0 8px 8px 0;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="contactsTableBody"></tbody>
+                    </table>
+                    <button type="button" class="btn-secondary" style="margin-top:8px;padding:0.4rem 1rem;font-size:0.8rem;" onclick="addContactRow()"><i class="fas fa-plus"></i> 添加联系人</button>
+                </div>
+
                 <div class="form-group" style="margin-bottom:1rem;"><label>新增一条跟进记录（会追加到历史，不会覆盖之前的）</label><textarea id="followNote" rows="2" placeholder="这次跟进聊了什么..."></textarea></div>
                 <div id="followHistoryBox"></div>
                 <div class="btn-group">
@@ -208,6 +224,15 @@
             </div>
 
             <div class="footer-note">🔒 云端同步 | 任何电脑打开自动同步 | 换电脑数据不丢失</div>
+        </div>
+    </div>
+
+    <div id="yearStatsModal" style="display:none; position:fixed; inset:0; background:rgba(14,75,110,0.5); z-index:9998; align-items:center; justify-content:center;">
+        <div style="background:white; border-radius:24px; padding:2rem; max-width:420px; width:90%; max-height:80vh; overflow-y:auto;">
+            <h3 style="color:#0e4b6e; margin-bottom:0.5rem;"><i class="fas fa-chart-bar"></i> 年度新客户统计</h3>
+            <p style="color:#5d7f9a; font-size:0.8rem; margin-bottom:1rem;">只统计CRM已建档、且"关联下单系统客户"确实有订单的客户——按其首笔订单年份（潜在客户→样品客户的转化时间点）计数。没在CRM建档或没关联的，不计入。</p>
+            <div id="yearStatsBody"></div>
+            <button class="btn-secondary" style="width:100%; margin-top:1rem;" onclick="document.getElementById('yearStatsModal').style.display='none';">关闭</button>
         </div>
     </div>
 
@@ -420,7 +445,11 @@
             let filtered = clients.filter(c => !c.deleted);
             if (searchKeyword) {
                 let kw = searchKeyword.toLowerCase();
-                filtered = filtered.filter(c => (c.name||'').toLowerCase().includes(kw) || (c.company && c.company.toLowerCase().includes(kw)) || (c.industry && c.industry.toLowerCase().includes(kw)));
+                filtered = filtered.filter(c => {
+                    let contacts = normalizeContacts(c);
+                    let contactMatch = contacts.some(p => (p.name||'').toLowerCase().includes(kw) || (p.email||'').toLowerCase().includes(kw));
+                    return contactMatch || (c.company && c.company.toLowerCase().includes(kw)) || (c.industry && c.industry.toLowerCase().includes(kw));
+                });
             }
             let today = getToday();
 
@@ -443,9 +472,12 @@
                 let remindBadge = remind ? `<span class="badge remind-badge">⚠️ 需跟进</span>` : '';
                 let followHistory = Array.isArray(c.followHistory) ? c.followHistory : [];
                 let lastFollow = followHistory.length ? followHistory[followHistory.length - 1] : null;
+                let contacts = normalizeContacts(c);
+                let primaryContact = contacts.length ? contacts[0] : { name: '（未填联系人）' };
+                let moreContactsNote = contacts.length > 1 ? `<br><small style="color:#54738f;">+${contacts.length - 1} 位其他联系人</small>` : '';
                 html += `<tr>
                     <td class="checkbox-col"><input type="checkbox" class="client-checkbox" value="${c.id}"></td>
-                    <td><strong>${escapeHtml(c.name)}</strong><br><small>${escapeHtml(c.company) || '—'} | ${escapeHtml(c.country)}</small></td>
+                    <td><strong>${escapeHtml(primaryContact.name)}</strong>${moreContactsNote}<br><small>${escapeHtml(c.company) || '—'} | ${escapeHtml(c.country)}</small></td>
                     <td>${clsBadge}${remindBadge ? '<br>' + remindBadge : ''}</td>
                     <td>${escapeHtml(c.industry) || '—'}<br><small>${escapeHtml(c.productLine) || ''}</small></td>
                     <td><span class="badge ${levelClass}">${escapeHtml(c.clientLevel)}</span> <span class="badge ${intentClass}">${escapeHtml(c.intention)}</span></td>
@@ -464,9 +496,80 @@
 
         function formatDate(d) { return d ? new Date(d).toLocaleDateString('zh-CN') : '—'; }
 
+        // ========== 联系人（一家公司支持多个联系人）==========
+        function addContactRow(contact) {
+            contact = contact || { name: '', title: '', email: '', phone: '' };
+            let tbody = document.getElementById('contactsTableBody');
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="padding:4px;"><input type="text" class="contact-name" value="${escapeHtml(contact.name)}" style="width:100%;padding:6px 8px;border:1px solid #c4d6e8;border-radius:8px;font-size:0.85rem;"></td>
+                <td style="padding:4px;"><input type="text" class="contact-title" value="${escapeHtml(contact.title)}" style="width:100%;padding:6px 8px;border:1px solid #c4d6e8;border-radius:8px;font-size:0.85rem;"></td>
+                <td style="padding:4px;"><input type="email" class="contact-email" value="${escapeHtml(contact.email)}" style="width:100%;padding:6px 8px;border:1px solid #c4d6e8;border-radius:8px;font-size:0.85rem;"></td>
+                <td style="padding:4px;"><input type="text" class="contact-phone" value="${escapeHtml(contact.phone)}" style="width:100%;padding:6px 8px;border:1px solid #c4d6e8;border-radius:8px;font-size:0.85rem;"></td>
+                <td style="padding:4px;text-align:center;"><i class="fas fa-times-circle" style="color:#ac3f3f;cursor:pointer;" onclick="this.closest('tr').remove()"></i></td>
+            `;
+            tbody.appendChild(tr);
+        }
+        function getContactsFromForm() {
+            let rows = document.querySelectorAll('#contactsTableBody tr');
+            let contacts = [];
+            rows.forEach(r => {
+                let name = r.querySelector('.contact-name').value.trim();
+                let title = r.querySelector('.contact-title').value.trim();
+                let email = r.querySelector('.contact-email').value.trim();
+                let phone = r.querySelector('.contact-phone').value.trim();
+                if (name || email || phone) contacts.push({ name, title, email, phone });
+            });
+            return contacts;
+        }
+        // 兼容旧数据：老记录只有单独的 name/email/phone 字段，没有 contacts 数组时，自动转换一次
+        function normalizeContacts(c) {
+            if (Array.isArray(c.contacts) && c.contacts.length) return c.contacts;
+            if (c.name || c.email || c.phone) {
+                return [{ name: c.name || '', title: '', email: c.email || '', phone: c.phone || '' }];
+            }
+            return [];
+        }
+
+        // ========== 年度新客户统计：只统计"CRM已建档 + 关联了下单系统客户 + 确实有订单"的客户，
+        //           按其首笔订单年份（即潜在客户→样品客户的转化时间点）分组计数。
+        //           不在CRM建档、或没关联下单系统客户的，不计入——哪怕订单系统里有他们的订单。==========
+        function computeNewCustomersByYear(crmClients, orders) {
+            let yearCounts = {};
+            crmClients.filter(c => !c.deleted && c.linkedCustomerCompany).forEach(c => {
+                let matching = orders.filter(o => !o.deleted && o.customerCompany === c.linkedCustomerCompany);
+                if (matching.length === 0) return; // 还没有订单，仍是潜在客户，不计入
+                let firstOrderDate = matching.reduce((min, o) => {
+                    let d = o.orderDate || '';
+                    return (!min || (d && d < min)) ? d : min;
+                }, '');
+                let year = (firstOrderDate || '').slice(0, 4);
+                if (!year) return;
+                yearCounts[year] = (yearCounts[year] || 0) + 1;
+            });
+            return yearCounts;
+        }
+
+        async function openYearStatsModal() {
+            let data = await fetchCustomerOrderData();
+            let yearCounts = computeNewCustomersByYear(clients, data.orders);
+            let years = Object.keys(yearCounts).sort().reverse();
+            let box = document.getElementById('yearStatsBody');
+            if (years.length === 0) {
+                box.innerHTML = '<div style="color:#94a3b8;">暂无数据——需要CRM客户"关联下单系统客户"，且该客户在下单系统里确实有订单，才会被统计</div>';
+            } else {
+                box.innerHTML = years.map(y => `
+                    <div style="display:flex; justify-content:space-between; padding:10px 4px; border-bottom:1px solid #eef4f9;">
+                        <span>${y} 年</span>
+                        <span style="font-weight:700; color:#0e4b6e;">${yearCounts[y]} 个新客户</span>
+                    </div>
+                `).join('');
+            }
+            document.getElementById('yearStatsModal').style.display = 'flex';
+        }
+
         // ========== 表单 ==========
         async function resetForm() {
-            document.getElementById("clientName").value = "";
             document.getElementById("company").value = "";
             await populateLinkedCustomerSelect();
             document.getElementById("linkedCustomerSelect").value = "";
@@ -479,12 +582,12 @@
             document.getElementById("source").value = "展会";
             document.getElementById("classOverride").value = "";
             document.getElementById("followUpCycleDays").value = "";
-            document.getElementById("email").value = "";
-            document.getElementById("phone").value = "";
             document.getElementById("nextFollowDate").value = "";
             document.getElementById("nextAction").value = "";
             document.getElementById("followNote").value = "";
             document.getElementById("followHistoryBox").innerHTML = "";
+            document.getElementById("contactsTableBody").innerHTML = "";
+            addContactRow();
             editId = null;
             document.getElementById("editId").value = "";
             document.getElementById("formTitleText").innerText = "新增外贸客户";
@@ -506,8 +609,9 @@
         }
 
         async function saveClient() {
-            let name = document.getElementById("clientName").value.trim();
-            if (!name) { alert("姓名不能为空"); return; }
+            let company = document.getElementById("company").value.trim();
+            if (!company) { alert("公司不能为空"); return; }
+            let contacts = getContactsFromForm();
 
             let existing = editId ? clients.find(c => c.id === editId) : null;
             let followHistory = existing && Array.isArray(existing.followHistory) ? existing.followHistory.slice() : [];
@@ -518,8 +622,8 @@
 
             let client = {
                 id: editId || genId(),
-                name: name,
-                company: document.getElementById("company").value.trim(),
+                company: company,
+                contacts: contacts,
                 linkedCustomerCompany: document.getElementById("linkedCustomerSelect").value,
                 country: document.getElementById("country").value.trim(),
                 industry: document.getElementById("industry").value.trim(),
@@ -530,8 +634,6 @@
                 source: document.getElementById("source").value,
                 classOverride: document.getElementById("classOverride").value,
                 followUpCycleDays: document.getElementById("followUpCycleDays").value,
-                email: document.getElementById("email").value.trim(),
-                phone: document.getElementById("phone").value.trim(),
                 nextFollowDate: document.getElementById("nextFollowDate").value,
                 nextAction: document.getElementById("nextAction").value.trim(),
                 followHistory: followHistory,
@@ -555,7 +657,6 @@
             let c = clients.find(c => c.id === id);
             if (!c) return;
             await populateLinkedCustomerSelect();
-            document.getElementById("clientName").value = c.name;
             document.getElementById("company").value = c.company || "";
             document.getElementById("linkedCustomerSelect").value = c.linkedCustomerCompany || "";
             document.getElementById("country").value = c.country || "China";
@@ -567,11 +668,13 @@
             document.getElementById("source").value = c.source || "展会";
             document.getElementById("classOverride").value = c.classOverride || "";
             document.getElementById("followUpCycleDays").value = c.followUpCycleDays || "";
-            document.getElementById("email").value = c.email || "";
-            document.getElementById("phone").value = c.phone || "";
             document.getElementById("nextFollowDate").value = c.nextFollowDate || "";
             document.getElementById("nextAction").value = c.nextAction || "";
             document.getElementById("followNote").value = "";
+            document.getElementById("contactsTableBody").innerHTML = "";
+            let contacts = normalizeContacts(c);
+            if (contacts.length === 0) contacts = [{ name: '', title: '', email: '', phone: '' }];
+            contacts.forEach(ct => addContactRow(ct));
             renderFollowHistory(c.followHistory);
             editId = c.id;
             document.getElementById("editId").value = c.id;
@@ -611,11 +714,15 @@
         function exportExcel() {
             let visible = clients.filter(c => !c.deleted);
             if (!visible.length) { alert("无数据"); return; }
-            let headers = ["姓名","公司","国家","行业","产品线","规模","等级","意向","来源","分类","邮箱","电话","下次跟进","下一步动作","最新跟进记录"];
+            let headers = ["公司","联系人（多个用；分隔）","国家","行业","产品线","规模","等级","意向","来源","分类","邮箱（多个用；分隔）","电话（多个用；分隔）","下次跟进","下一步动作","最新跟进记录"];
             let data = visible.map(c => {
                 let cls = computeClassification(c);
                 let lastFollow = Array.isArray(c.followHistory) && c.followHistory.length ? c.followHistory[c.followHistory.length - 1] : null;
-                return [c.name, c.company, c.country, c.industry, c.productLine, c.scale, c.clientLevel, c.intention, c.source, cls.label, c.email, c.phone, c.nextFollowDate, c.nextAction, lastFollow ? `${lastFollow.date} ${lastFollow.note}` : ''];
+                let contacts = normalizeContacts(c);
+                let names = contacts.map(p => p.name).filter(Boolean).join('；');
+                let emails = contacts.map(p => p.email).filter(Boolean).join('；');
+                let phones = contacts.map(p => p.phone).filter(Boolean).join('；');
+                return [c.company, names, c.country, c.industry, c.productLine, c.scale, c.clientLevel, c.intention, c.source, cls.label, emails, phones, c.nextFollowDate, c.nextAction, lastFollow ? `${lastFollow.date} ${lastFollow.note}` : ''];
             });
             let ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
             let wb = XLSX.utils.book_new();
@@ -634,10 +741,15 @@
                 for (let i = 1; i < rows.length; i++) {
                     let r = rows[i];
                     if (r[0]) {
+                        // 支持"姓名；分号"格式的多联系人，跟邮箱/电话按位置对应；对不上就只填第一个联系人的邮箱电话
+                        let names = r[1] ? String(r[1]).split(/[；;]/).map(s => s.trim()).filter(Boolean) : [];
+                        let emails = r[10] ? String(r[10]).split(/[；;]/).map(s => s.trim()).filter(Boolean) : [];
+                        let phones = r[11] ? String(r[11]).split(/[；;]/).map(s => s.trim()).filter(Boolean) : [];
+                        let contacts = names.length ? names.map((n, idx) => ({ name: n, title: '', email: emails[idx] || '', phone: phones[idx] || '' })) : [];
                         imported.push({
                             id: genId(),
-                            name: String(r[0]).trim(),
-                            company: r[1] ? String(r[1]).trim() : "",
+                            company: String(r[0]).trim(),
+                            contacts: contacts,
                             linkedCustomerCompany: "",
                             country: r[2] ? String(r[2]).trim() : "",
                             industry: r[3] ? String(r[3]).trim() : "",
@@ -648,8 +760,6 @@
                             source: r[8] ? String(r[8]).trim() : "展会",
                             classOverride: "",
                             followUpCycleDays: "",
-                            email: r[10] ? String(r[10]).trim() : "",
-                            phone: r[11] ? String(r[11]).trim() : "",
                             nextFollowDate: r[12] ? String(r[12]).trim() : "",
                             nextAction: r[13] ? String(r[13]).trim() : "",
                             followHistory: r[14] ? [{ date: getToday(), note: String(r[14]).trim() }] : [],
@@ -681,6 +791,7 @@
             document.getElementById("importBtn").onclick = () => document.getElementById("importFile").click();
             document.getElementById("importFile").onchange = (e) => { if(e.target.files[0]) importExcel(e.target.files[0]); e.target.value = ""; };
             document.getElementById("backupBtn").onclick = backupAllData;
+            document.getElementById("yearStatsBtn").onclick = openYearStatsModal;
             document.getElementById("selectAllCheckbox").onclick = (e) => document.querySelectorAll(".client-checkbox").forEach(cb => cb.checked = e.target.checked);
         }
 
