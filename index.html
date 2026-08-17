@@ -74,6 +74,8 @@
         .cls-lead { background: #e0edfb; color: #1f5fa8; }
         .cls-sample { background: #fdeecb; color: #96650f; }
         .cls-repeat { background: #dcf5e3; color: #157a45; }
+        .cls-pool { background: #dde8f0; color: #4a6a85; }
+        .pool-badge { background: #fff0d9; color: #a56a1c; display: inline-block; padding: 0.3rem 0.8rem; border-radius: 30px; font-size: 0.75rem; cursor: pointer; }
         .cls-manual { border: 1px dashed #94a3b8; }
         .remind-badge { background: #ffe0e0; color: #b23c3c; }
         .action-icons i { font-size: 1.2rem; color: #57809f; margin: 0 6px; cursor: pointer; }
@@ -163,6 +165,7 @@
                         <button class="btn-import" id="importBtn"><i class="fas fa-file-import"></i> 导入Excel</button>
                         <button class="btn-backup" id="backupBtn"><i class="fas fa-shield-alt"></i> 备份全部数据</button>
                         <button class="btn-secondary" id="yearStatsBtn"><i class="fas fa-chart-bar"></i> 年度新客户统计</button>
+                        <button class="btn-secondary" id="publicPoolBtn"><i class="fas fa-water"></i> 公海</button>
                         <div id="syncStatus" class="sync-status"><i class="fas fa-cloud-upload-alt cloud-icon"></i> 同步中...</div>
                     </div>
                     <button class="btn-primary" id="showAddFormBtn"><i class="fas fa-plus-circle"></i> 新增客户</button>
@@ -233,6 +236,15 @@
             <p style="color:#5d7f9a; font-size:0.8rem; margin-bottom:1rem;">只统计CRM已建档、且"关联下单系统客户"确实有订单的客户——按其首笔订单年份（潜在客户→样品客户的转化时间点）计数。没在CRM建档或没关联的，不计入。</p>
             <div id="yearStatsBody"></div>
             <button class="btn-secondary" style="width:100%; margin-top:1rem;" onclick="document.getElementById('yearStatsModal').style.display='none';">关闭</button>
+        </div>
+    </div>
+
+    <div id="publicPoolModal" style="display:none; position:fixed; inset:0; background:rgba(14,75,110,0.5); z-index:9998; align-items:center; justify-content:center;">
+        <div style="background:white; border-radius:24px; padding:2rem; max-width:600px; width:90%; max-height:80vh; overflow-y:auto;">
+            <h3 style="color:#0e4b6e; margin-bottom:0.5rem;"><i class="fas fa-water"></i> 公海</h3>
+            <p style="color:#5d7f9a; font-size:0.8rem; margin-bottom:1rem;">跟进满10次仍未转化的潜在客户会被建议移入这里，从主列表隐藏。随时可以移回主列表重新跟进。</p>
+            <div id="publicPoolBody"></div>
+            <button class="btn-secondary" style="width:100%; margin-top:1rem;" onclick="document.getElementById('publicPoolModal').style.display='none';">关闭</button>
         </div>
     </div>
 
@@ -394,7 +406,7 @@
         function genId() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
         function escapeHtml(str) { if(!str) return ''; return String(str).replace(/[&<>]/g, m => m==='&'?'&amp;':m==='<'?'&lt;':m==='>'?'&gt;':m); }
 
-        // ========== 客户分类 + 老客户跟进提醒 ==========
+        // ========== 客户分类 + 老客户/样品客户跟进提醒 ==========
         // 根据关联的下单系统客户名，统计真实订单次数：0单=潜在客户，1单=样品客户，2单及以上=老客户
         function computeOrderStats(linkedCompany) {
             if (!linkedCompany || !customerOrderCache) return { count: 0, lastOrderDate: null };
@@ -407,27 +419,69 @@
             return { count, lastOrderDate: lastOrderDate || null };
         }
 
+        const DEFAULT_FOLLOW_UP_CYCLE_DAYS = 90; // 默认一个季度提醒一次
+
         function computeClassification(client) {
-            if (client.classOverride) return { label: client.classOverride, manual: true, orderCount: null, lastOrderDate: null };
+            // 不管有没有手动覆盖分类标签，订单统计（次数/最近下单日）都照实计算，
+            // 这样即使手动强制了分类，跟进提醒依然能用到真实的最近下单日期
             let stats = computeOrderStats(client.linkedCustomerCompany);
-            let label = stats.count === 0 ? '潜在客户' : (stats.count === 1 ? '样品客户' : '老客户');
-            return { label, manual: false, orderCount: stats.count, lastOrderDate: stats.lastOrderDate };
+            let autoLabel = stats.count === 0 ? '潜在客户' : (stats.count === 1 ? '样品客户' : '老客户');
+            if (client.classOverride) {
+                return { label: client.classOverride, manual: true, orderCount: stats.count, lastOrderDate: stats.lastOrderDate };
+            }
+            return { label: autoLabel, manual: false, orderCount: stats.count, lastOrderDate: stats.lastOrderDate };
         }
 
+        // 老客户和样品客户都需要跟进提醒；没单独设置周期的，默认按一个季度算
         function needsFollowUpReminder(client, classification, today) {
-            if (classification.label !== '老客户') return false;
-            if (!client.followUpCycleDays) return false;
+            if (classification.label !== '老客户' && classification.label !== '样品客户') return false;
+            let cycleDays = client.followUpCycleDays ? parseInt(client.followUpCycleDays) : DEFAULT_FOLLOW_UP_CYCLE_DAYS;
             let lastOrderDate = classification.lastOrderDate;
             if (!lastOrderDate) return false;
             let daysSince = Math.floor((new Date(today) - new Date(lastOrderDate)) / 86400000);
-            return daysSince > parseInt(client.followUpCycleDays);
+            return daysSince > cycleDays;
         }
 
         function classBadgeClass(label) {
             if (label === '潜在客户') return 'cls-lead';
             if (label === '样品客户') return 'cls-sample';
+            if (label === '公海') return 'cls-pool';
             return 'cls-repeat';
         }
+
+        // ========== 公海：潜在客户跟进满10次、始终没下单，提示是否移入公海（需要手动确认，系统不会自动移）==========
+        const PUBLIC_POOL_FOLLOW_THRESHOLD = 10;
+
+        function suggestPublicPool(client, classification) {
+            if (client.inPublicPool) return false; // 已经在公海了，不用再提示
+            if (classification.label !== '潜在客户') return false; // 只针对从没转化过的潜在客户
+            let followCount = Array.isArray(client.followHistory) ? client.followHistory.length : 0;
+            return followCount >= PUBLIC_POOL_FOLLOW_THRESHOLD;
+        }
+
+        window.movetoPublicPool = async function(id) {
+            let c = clients.find(c => c.id === id);
+            if (!c) return;
+            if (!confirm('确定把这个客户移入公海吗？移入后会从主列表隐藏，可以在"🌊 公海"里找回。')) return;
+            c.inPublicPool = true;
+            c.publicPoolAt = getToday();
+            saveLocal();
+            await saveToCloud();
+            await render();
+            showToast('已移入公海');
+        };
+
+        window.reactivateFromPublicPool = async function(id) {
+            let c = clients.find(c => c.id === id);
+            if (!c) return;
+            c.inPublicPool = false;
+            c.publicPoolAt = null;
+            saveLocal();
+            await saveToCloud();
+            await render();
+            renderPublicPoolList();
+            showToast('已从公海移回主列表');
+        };
 
         // ========== 关联客户选择器（从下单系统客户库拉取）==========
         async function populateLinkedCustomerSelect() {
@@ -442,7 +496,7 @@
         // ========== 渲染列表 ==========
         async function render() {
             await fetchCustomerOrderData(); // 确保有数据用于分类计算（有缓存的话很快）
-            let filtered = clients.filter(c => !c.deleted);
+            let filtered = clients.filter(c => !c.deleted && !c.inPublicPool); // 公海客户默认从主列表隐藏
             if (searchKeyword) {
                 let kw = searchKeyword.toLowerCase();
                 filtered = filtered.filter(c => {
@@ -457,7 +511,8 @@
             let enriched = filtered.map(c => {
                 let cls = computeClassification(c);
                 let remind = needsFollowUpReminder(c, cls, today);
-                return { c, cls, remind };
+                let poolSuggest = suggestPublicPool(c, cls);
+                return { c, cls, remind, poolSuggest };
             });
 
             if (classFilterValue) {
@@ -465,11 +520,12 @@
             }
 
             let html = "";
-            enriched.forEach(({c, cls, remind}) => {
+            enriched.forEach(({c, cls, remind, poolSuggest}) => {
                 let intentClass = c.intention.includes("高") ? "intent-high" : "intent-mid";
                 let levelClass = c.clientLevel.includes("金") ? "level-gold" : "";
                 let clsBadge = `<span class="badge ${classBadgeClass(cls.label)} ${cls.manual ? 'cls-manual' : ''}">${cls.label}${cls.manual ? ' (手动)' : ''}</span>`;
                 let remindBadge = remind ? `<span class="badge remind-badge">⚠️ 需跟进</span>` : '';
+                let poolBadge = poolSuggest ? `<span class="pool-badge" onclick="movetoPublicPool('${c.id}')" title="点击移入公海">🌊 建议移入公海</span>` : '';
                 let followHistory = Array.isArray(c.followHistory) ? c.followHistory : [];
                 let lastFollow = followHistory.length ? followHistory[followHistory.length - 1] : null;
                 let contacts = normalizeContacts(c);
@@ -478,7 +534,7 @@
                 html += `<tr>
                     <td class="checkbox-col"><input type="checkbox" class="client-checkbox" value="${c.id}"></td>
                     <td><strong>${escapeHtml(primaryContact.name)}</strong>${moreContactsNote}<br><small>${escapeHtml(c.company) || '—'} | ${escapeHtml(c.country)}</small></td>
-                    <td>${clsBadge}${remindBadge ? '<br>' + remindBadge : ''}</td>
+                    <td>${clsBadge}${remindBadge ? '<br>' + remindBadge : ''}${poolBadge ? '<br>' + poolBadge : ''}</td>
                     <td>${escapeHtml(c.industry) || '—'}<br><small>${escapeHtml(c.productLine) || ''}</small></td>
                     <td><span class="badge ${levelClass}">${escapeHtml(c.clientLevel)}</span> <span class="badge ${intentClass}">${escapeHtml(c.intention)}</span></td>
                     <td><span class="badge source-badge">${escapeHtml(c.source) || '展会'}</span></td>
@@ -566,6 +622,30 @@
                 `).join('');
             }
             document.getElementById('yearStatsModal').style.display = 'flex';
+        }
+
+        function renderPublicPoolList() {
+            let pooled = clients.filter(c => !c.deleted && c.inPublicPool);
+            pooled.sort((a, b) => (b.publicPoolAt || '').localeCompare(a.publicPoolAt || ''));
+            let box = document.getElementById('publicPoolBody');
+            if (pooled.length === 0) {
+                box.innerHTML = '<div style="color:#94a3b8;">公海目前是空的</div>';
+                return;
+            }
+            box.innerHTML = pooled.map(c => {
+                let contacts = normalizeContacts(c);
+                let primaryName = contacts.length ? contacts[0].name : '（未填联系人）';
+                let followCount = Array.isArray(c.followHistory) ? c.followHistory.length : 0;
+                return `<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 4px; border-bottom:1px solid #eef4f9;">
+                    <div><b>${escapeHtml(c.company)}</b><br><small style="color:#94a3b8;">${escapeHtml(primaryName)} ｜ 跟进${followCount}次 ｜ 移入日期：${formatDate(c.publicPoolAt)}</small></div>
+                    <button class="btn-secondary" style="padding:0.4rem 1rem; font-size:0.8rem;" onclick="reactivateFromPublicPool('${c.id}')">移回主列表</button>
+                </div>`;
+            }).join('');
+        }
+
+        async function openPublicPoolModal() {
+            renderPublicPoolList();
+            document.getElementById('publicPoolModal').style.display = 'flex';
         }
 
         // ========== 表单 ==========
@@ -792,17 +872,31 @@
             document.getElementById("importFile").onchange = (e) => { if(e.target.files[0]) importExcel(e.target.files[0]); e.target.value = ""; };
             document.getElementById("backupBtn").onclick = backupAllData;
             document.getElementById("yearStatsBtn").onclick = openYearStatsModal;
+            document.getElementById("publicPoolBtn").onclick = openPublicPoolModal;
             document.getElementById("selectAllCheckbox").onclick = (e) => document.querySelectorAll(".client-checkbox").forEach(cb => cb.checked = e.target.checked);
         }
 
         document.getElementById("unlockBtn").onclick = unlock;
-        document.getElementById("passwordInput").addEventListener("keypress", e => { if(e.key === "Enter") unlock(); });
+        document.getElementById("passwordInput").addEventListener("keypress", e => {
+            if (e.key === "Enter") {
+                if (document.getElementById("unlockBtn").disabled) {
+                    document.getElementById("lockError").innerText = "⏳ 云端密码校验中，请稍等几秒再试";
+                    return;
+                }
+                unlock();
+            }
+        });
         document.getElementById("changePwdBtn").onclick = changePwd;
 
         // 页面一加载就去云端校验密码，校验完成前解锁按钮保持禁用，避免用过期本地密码误判
+        // 加了8秒超时兜底：万一网络慢或请求卡住，也不会让按钮永远转圈
         (async function preloadPassword() {
             try {
-                let res = await fetch(`${WORKER_URL}/bin/${BIN_ID}/latest`, { headers: { 'X-Access-Token': ACCESS_TOKEN } });
+                let timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('云端校验超时')), 8000));
+                let res = await Promise.race([
+                    fetch(`${WORKER_URL}/bin/${BIN_ID}/latest`, { headers: { 'X-Access-Token': ACCESS_TOKEN } }),
+                    timeoutPromise
+                ]);
                 if (res.ok) {
                     let json = await res.json();
                     let r = json.record;
