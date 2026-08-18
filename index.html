@@ -167,6 +167,7 @@
                         <button class="btn-secondary" id="yearStatsBtn"><i class="fas fa-chart-bar"></i> 年度新客户统计</button>
                         <button class="btn-secondary" id="publicPoolBtn"><i class="fas fa-water"></i> 公海</button>
                         <div id="syncStatus" class="sync-status"><i class="fas fa-cloud-upload-alt cloud-icon"></i> 同步中...</div>
+                        <button class="btn-primary" id="retrySyncBtn" onclick="retrySync()" style="display:none;"><i class="fas fa-sync-alt"></i> 重试同步</button>
                     </div>
                     <button class="btn-primary" id="showAddFormBtn"><i class="fas fa-plus-circle"></i> 新增客户</button>
                 </div>
@@ -288,6 +289,8 @@
         }
 
         // ========== 云端同步（走Worker中转，不暴露真实Key）==========
+        let cloudEverLoaded = false; // 本次打开页面后是否成功从云端读取过数据
+
         async function loadFromCloud() {
             try {
                 const response = await fetch(`${WORKER_URL}/bin/${BIN_ID}/latest`, {
@@ -306,9 +309,11 @@
                         // 兼容旧格式：云端之前直接存的是客户数组
                         clients = record;
                     }
+                    cloudEverLoaded = true;
                     saveLocal();
                     render();
                     updateSyncStatus(true, "已同步云端");
+                    document.getElementById('retrySyncBtn').style.display = 'none';
                 } else {
                     throw new Error("加载失败");
                 }
@@ -316,6 +321,7 @@
                 console.log("加载云端失败，使用本地备份", e);
                 loadLocal();
                 updateSyncStatus(false, "离线模式");
+                document.getElementById('retrySyncBtn').style.display = 'inline-flex';
             }
         }
 
@@ -332,12 +338,15 @@
                 if (response.ok) {
                     updateSyncStatus(true, "已同步云端");
                     showToast("已同步到云端");
+                    document.getElementById('retrySyncBtn').style.display = 'none';
                 } else {
                     updateSyncStatus(false, "同步失败");
+                    document.getElementById('retrySyncBtn').style.display = 'inline-flex';
                 }
             } catch (e) {
                 console.error("保存失败", e);
                 updateSyncStatus(false, "同步失败");
+                document.getElementById('retrySyncBtn').style.display = 'inline-flex';
             }
         }
 
@@ -347,6 +356,21 @@
             if (stored) clients = JSON.parse(stored);
             else clients = [];
             render();
+        }
+
+        // 手动重试：还没成功读过云端时重试=重新读（避免拿本地空/旧数据覆盖云端）；
+        // 已经成功读过云端、是后续保存失败时，重试=重新推送当前数据
+        async function retrySync() {
+            let btn = document.getElementById('retrySyncBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-sync-alt"></i> 正在重试...';
+            if (!cloudEverLoaded) {
+                await loadFromCloud();
+            } else {
+                await saveToCloud();
+            }
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-sync-alt"></i> 重试同步';
         }
 
         function backupAllData() {
@@ -407,11 +431,13 @@
             let c = clients.find(c => c.id === id);
             if (!c) return;
             let allQuotes = await fetchQuotationData();
-            let matching = allQuotes.filter(q => q.customerCompany === c.company);
+            let normalize = s => (s || '').trim().toLowerCase();
+            let targetName = normalize(c.company);
+            let matching = allQuotes.filter(q => normalize(q.customerCompany) === targetName);
             matching.sort((a, b) => (b.quoteDate || '').localeCompare(a.quoteDate || ''));
 
             if (matching.length === 0) {
-                alert(`${c.company} 目前没有报价记录（匹配依据是CRM里的"公司"字段和报价系统里的客户名称完全一致，如果对不上匹配不到，检查一下两边公司名写法是否一致）`);
+                alert(`${c.company} 目前没有报价记录\n\n（匹配依据是CRM的"公司"字段和报价系统的客户名称——已忽略首尾空格和大小写差异。如果确实报过价还是查不到，可能是报价单当时没有真正同步到云端，回报价系统那边刷新页面确认一下那份报价单是否还在、右上角状态是否显示"已同步云端"）`);
                 return;
             }
             let lines = matching.map(q => {
