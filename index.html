@@ -140,9 +140,15 @@
                 </div>
                 <div class="stats">
                     <div class="stat-item"><span class="stat-value" id="totalClients">0</span> <span class="stat-label">总客户</span></div>
-                    <div class="stat-item"><span class="stat-value" id="hotLeads">0</span> <span class="stat-label">高意向</span></div>
-                    <div class="stat-item"><span class="stat-value" id="dueTodayCount">0</span> <span class="stat-label">今日待跟进</span></div>
-                    <div class="stat-item warn"><span class="stat-value" id="lapsedCount">0</span> <span class="stat-label">老客户需跟进</span></div>
+                    <div class="stat-item" id="hotLeadsStat" style="cursor:pointer;" onclick="toggleSpecialFilter('hotLeads')" title="点击查看高意向的客户"><span class="stat-value" id="hotLeads">0</span> <span class="stat-label">高意向</span></div>
+                    <div class="stat-item" id="dueTodayStat" style="cursor:pointer;" onclick="toggleSpecialFilter('dueToday')" title="点击查看今日待跟进的客户"><span class="stat-value" id="dueTodayCount">0</span> <span class="stat-label">今日待跟进</span></div>
+                    <div class="stat-item warn" id="lapsedStat" style="cursor:pointer;" onclick="toggleSpecialFilter('lapsedReturning')" title="点击查看老客户需跟进的客户"><span class="stat-value" id="lapsedCount">0</span> <span class="stat-label">老客户需跟进</span></div>
+                </div>
+                <div id="specialFilterBanner" style="display:none; margin-top:0.8rem;">
+                    <span style="background:#fff0d9; color:#a56a1c; padding:0.4rem 1rem; border-radius:30px; font-size:0.8rem; display:inline-flex; align-items:center; gap:0.6rem;">
+                        <span id="specialFilterText"></span>
+                        <span style="cursor:pointer; font-weight:700;" onclick="clearSpecialFilter()">✕ 清除筛选</span>
+                    </span>
                 </div>
             </div>
 
@@ -261,6 +267,7 @@
         let clients = [];
         let searchKeyword = "";
         let classFilterValue = "";
+        let specialFilterValue = ""; // '' | 'dueToday' | 'lapsedReturning' —— 点统计卡片触发的快捷筛选
         let editId = null;
         let customerOrderCache = null; // 缓存下单系统的订单+客户目录，避免重复拉取
 
@@ -583,8 +590,19 @@
                 enriched = enriched.filter(x => x.cls.label === classFilterValue);
             }
 
+            // 特殊筛选（点"高意向"/"今日待跟进"/"老客户需跟进"卡片触发）只影响下面表格实际显示的行，
+            // 不影响上面统计数字本身——这样点了筛选之后，数字不会跟着变得让人confused
+            let displayList = enriched;
+            if (specialFilterValue === 'hotLeads') {
+                displayList = enriched.filter(x => x.c.intention.includes('高'));
+            } else if (specialFilterValue === 'dueToday') {
+                displayList = enriched.filter(x => x.c.nextFollowDate === today);
+            } else if (specialFilterValue === 'lapsedReturning') {
+                displayList = enriched.filter(x => x.remind);
+            }
+
             let html = "";
-            enriched.forEach(({c, cls, remind, poolSuggest}) => {
+            displayList.forEach(({c, cls, remind, poolSuggest}) => {
                 let intentClass = c.intention.includes("高") ? "intent-high" : "intent-mid";
                 let levelClass = c.clientLevel.includes("金") ? "level-gold" : "";
                 let clsBadge = `<span class="badge ${classBadgeClass(cls.label)} ${cls.manual ? 'cls-manual' : ''}">${cls.label}${cls.manual ? ' (手动)' : ''}</span>`;
@@ -607,11 +625,37 @@
                     <td class="action-icons"><i class="fas fa-edit" onclick="editClient('${c.id}')"></i><i class="fas fa-clock" onclick="quickFollow('${c.id}')"></i><i class="fas fa-file-invoice-dollar" onclick="viewQuoteHistory('${c.id}')" title="查看报价记录"></i><i class="fas fa-trash-alt" onclick="deleteClient('${c.id}')"></i></td>
                 </tr>`;
             });
-            document.getElementById("tableBody").innerHTML = html || '<tr><td colspan="9" style="text-align:center;">暂无客户</td></tr>';
+            let emptyMsg = specialFilterValue ? '没有符合当前筛选条件的客户' : '暂无客户';
+            document.getElementById("tableBody").innerHTML = html || `<tr><td colspan="9" style="text-align:center;">${emptyMsg}</td></tr>`;
             document.getElementById("totalClients").innerText = filtered.length;
             document.getElementById("hotLeads").innerText = filtered.filter(c => c.intention.includes("高")).length;
             document.getElementById("dueTodayCount").innerText = filtered.filter(c => c.nextFollowDate === today).length;
             document.getElementById("lapsedCount").innerText = enriched.filter(x => x.remind).length;
+            updateSpecialFilterBanner(displayList.length);
+        }
+
+        // 点统计卡片切换筛选：再点一次同一个会取消筛选，点另一个会切换筛选条件
+        function toggleSpecialFilter(type) {
+            specialFilterValue = (specialFilterValue === type) ? '' : type;
+            render();
+        }
+        function clearSpecialFilter() {
+            specialFilterValue = '';
+            render();
+        }
+        function updateSpecialFilterBanner(count) {
+            let banner = document.getElementById('specialFilterBanner');
+            let text = document.getElementById('specialFilterText');
+            document.getElementById('hotLeadsStat').style.outline = specialFilterValue === 'hotLeads' ? '2px solid #ac3f3f' : 'none';
+            document.getElementById('dueTodayStat').style.outline = specialFilterValue === 'dueToday' ? '2px solid #0e4b6e' : 'none';
+            document.getElementById('lapsedStat').style.outline = specialFilterValue === 'lapsedReturning' ? '2px solid #ac3f3f' : 'none';
+            if (!specialFilterValue) {
+                banner.style.display = 'none';
+                return;
+            }
+            let labelMap = { hotLeads: '高意向', dueToday: '今日待跟进', lapsedReturning: '老客户需跟进' };
+            text.innerText = `正在筛选：${labelMap[specialFilterValue]}（共 ${count} 个客户）`;
+            banner.style.display = 'block';
         }
 
         function formatDate(d) { return d ? new Date(d).toLocaleDateString('zh-CN') : '—'; }
@@ -926,7 +970,7 @@
             await loadFromCloud();
             await populateLinkedCustomerSelect();
             document.getElementById("searchBtn").onclick = () => { searchKeyword = document.getElementById("searchInput").value; render(); };
-            document.getElementById("clearSearchBtn").onclick = () => { document.getElementById("searchInput").value = ""; searchKeyword = ""; document.getElementById("classFilter").value = ""; classFilterValue = ""; render(); };
+            document.getElementById("clearSearchBtn").onclick = () => { document.getElementById("searchInput").value = ""; searchKeyword = ""; document.getElementById("classFilter").value = ""; classFilterValue = ""; specialFilterValue = ""; render(); };
             document.getElementById("classFilter").onchange = (e) => { classFilterValue = e.target.value; render(); };
             document.getElementById("showAddFormBtn").onclick = async () => { await resetForm(); document.getElementById("formPanel").style.display = "block"; };
             document.getElementById("cancelFormBtn").onclick = resetForm;
