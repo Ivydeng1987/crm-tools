@@ -205,6 +205,9 @@
                     <div class="form-group"><label>老客户跟进周期（天）</label><input type="number" id="followUpCycleDays" placeholder="如：90"></div>
                     <div class="form-group"><label>下次跟进</label><input type="date" id="nextFollowDate"></div>
                     <div class="form-group"><label>下一步动作</label><input type="text" id="nextAction"></div>
+                    <div class="form-group"><label>官网</label><input type="text" id="website" placeholder="https://..."></div>
+                    <div class="form-group"><label>领英 LinkedIn</label><input type="text" id="linkedin" placeholder="https://linkedin.com/..."></div>
+                    <div class="form-group"><label>Facebook</label><input type="text" id="facebook" placeholder="https://facebook.com/..."></div>
                     <input type="hidden" id="editId">
                 </div>
 
@@ -252,6 +255,16 @@
             <p style="color:#5d7f9a; font-size:0.8rem; margin-bottom:1rem;">跟进满10次仍未转化的潜在客户会被建议移入这里，从主列表隐藏。随时可以移回主列表重新跟进。</p>
             <div id="publicPoolBody"></div>
             <button class="btn-secondary" style="width:100%; margin-top:1rem;" onclick="document.getElementById('publicPoolModal').style.display='none';">关闭</button>
+        </div>
+    </div>
+
+    <div id="viewClientModal" style="display:none; position:fixed; inset:0; background:rgba(14,75,110,0.5); z-index:9998; align-items:center; justify-content:center;">
+        <div style="background:white; border-radius:24px; padding:2rem; max-width:560px; width:90%; max-height:85vh; overflow-y:auto;">
+            <div id="viewClientBody"></div>
+            <div style="display:flex; gap:0.8rem; margin-top:1.2rem;">
+                <button class="btn-primary" id="viewClientEditBtn" style="flex:1; border-radius:40px; padding:0.7rem;">编辑此客户</button>
+                <button class="btn-secondary" style="flex:1;" onclick="document.getElementById('viewClientModal').style.display='none';">关闭</button>
+            </div>
         </div>
     </div>
 
@@ -601,6 +614,18 @@
                 displayList = enriched.filter(x => x.remind);
             }
 
+            // 按意向→客户等级排序：高意向优先，同意向内再按钻石>金牌>银牌>基础排
+            const INTENTION_RANK = { '高意向🔥': 0, '中意向⭐': 1, '低意向🍃': 2 };
+            const LEVEL_RANK = { '钻石⭐': 0, '金牌🥇': 1, '银牌🥈': 2, '基础⚪': 3 };
+            displayList = displayList.slice().sort((a, b) => {
+                let ia = INTENTION_RANK[a.c.intention] ?? 99;
+                let ib = INTENTION_RANK[b.c.intention] ?? 99;
+                if (ia !== ib) return ia - ib;
+                let la = LEVEL_RANK[a.c.clientLevel] ?? 99;
+                let lb = LEVEL_RANK[b.c.clientLevel] ?? 99;
+                return la - lb;
+            });
+
             let html = "";
             displayList.forEach(({c, cls, remind, poolSuggest}) => {
                 let intentClass = c.intention.includes("高") ? "intent-high" : "intent-mid";
@@ -622,7 +647,7 @@
                     <td><span class="badge source-badge">${escapeHtml(c.source) || '展会'}</span></td>
                     <td>${lastFollow ? formatDate(lastFollow.date) : '—'}<br><small>${lastFollow ? escapeHtml((lastFollow.note||'').substring(0,20)) : ''}</small></td>
                     <td>${c.nextFollowDate || '—'}${c.nextFollowDate === today ? ' 🔔' : (c.nextFollowDate && c.nextFollowDate < today ? ' ⚠️' : '')}</td>
-                    <td class="action-icons"><i class="fas fa-edit" onclick="editClient('${c.id}')"></i><i class="fas fa-clock" onclick="quickFollow('${c.id}')"></i><i class="fas fa-file-invoice-dollar" onclick="viewQuoteHistory('${c.id}')" title="查看报价记录"></i><i class="fas fa-trash-alt" onclick="deleteClient('${c.id}')"></i></td>
+                    <td class="action-icons"><i class="fas fa-eye" onclick="viewClient('${c.id}')" title="查看客户信息"></i><i class="fas fa-edit" onclick="editClient('${c.id}')"></i><i class="fas fa-clock" onclick="quickFollow('${c.id}')"></i><i class="fas fa-file-invoice-dollar" onclick="viewQuoteHistory('${c.id}')" title="查看报价记录"></i><i class="fas fa-trash-alt" onclick="deleteClient('${c.id}')"></i></td>
                 </tr>`;
             });
             let emptyMsg = specialFilterValue ? '没有符合当前筛选条件的客户' : '暂无客户';
@@ -772,6 +797,9 @@
             document.getElementById("followUpCycleDays").value = "";
             document.getElementById("nextFollowDate").value = "";
             document.getElementById("nextAction").value = "";
+            document.getElementById("website").value = "";
+            document.getElementById("linkedin").value = "";
+            document.getElementById("facebook").value = "";
             document.getElementById("followNote").value = "";
             document.getElementById("followHistoryBox").innerHTML = "";
             document.getElementById("contactsTableBody").innerHTML = "";
@@ -824,6 +852,9 @@
                 followUpCycleDays: document.getElementById("followUpCycleDays").value,
                 nextFollowDate: document.getElementById("nextFollowDate").value,
                 nextAction: document.getElementById("nextAction").value.trim(),
+                website: document.getElementById("website").value.trim(),
+                linkedin: document.getElementById("linkedin").value.trim(),
+                facebook: document.getElementById("facebook").value.trim(),
                 followHistory: followHistory,
                 deleted: existing ? existing.deleted : false,
                 deletedAt: existing ? existing.deletedAt : null
@@ -840,6 +871,51 @@
             resetForm();
             showToast("已保存并同步云端");
         }
+
+        // 只读查看客户信息，不用进编辑模式就能看全部资料
+        window.viewClient = function(id) {
+            let c = clients.find(c => c.id === id);
+            if (!c) return;
+            let cls = computeClassification(c);
+            let contacts = normalizeContacts(c);
+            let contactsHtml = contacts.length
+                ? contacts.map(p => `<div style="padding:6px 0; border-bottom:1px solid #eef4f9;"><b>${escapeHtml(p.name)}</b>${p.title ? ' · ' + escapeHtml(p.title) : ''}<br><small style="color:#5d7f9a;">${escapeHtml(p.email) || '—'} ｜ ${escapeHtml(p.phone) || '—'}</small></div>`).join('')
+                : '<div style="color:#94a3b8;">暂无联系人</div>';
+            let followHistory = Array.isArray(c.followHistory) ? c.followHistory : [];
+            let followHtml = followHistory.length
+                ? followHistory.slice().reverse().slice(0, 5).map(f => `<div style="padding:6px 0; border-bottom:1px solid #eef4f9; font-size:0.85rem;"><b>${formatDate(f.date)}</b>　${escapeHtml(f.note || '')}</div>`).join('')
+                : '<div style="color:#94a3b8;font-size:0.85rem;">暂无跟进记录</div>';
+            let socialLinks = [];
+            if (c.website) socialLinks.push(`<a href="${escapeHtml(c.website)}" target="_blank" style="color:#0e4b6e;"><i class="fas fa-globe"></i> 官网</a>`);
+            if (c.linkedin) socialLinks.push(`<a href="${escapeHtml(c.linkedin)}" target="_blank" style="color:#0e4b6e;"><i class="fab fa-linkedin"></i> LinkedIn</a>`);
+            if (c.facebook) socialLinks.push(`<a href="${escapeHtml(c.facebook)}" target="_blank" style="color:#0e4b6e;"><i class="fab fa-facebook"></i> Facebook</a>`);
+            let socialHtml = socialLinks.length ? `<div style="margin-top:0.6rem; display:flex; gap:1rem; font-size:0.85rem;">${socialLinks.join('')}</div>` : '';
+
+            document.getElementById('viewClientBody').innerHTML = `
+                <h3 style="color:#0e4b6e; margin-bottom:0.3rem;">${escapeHtml(c.company)}</h3>
+                <div style="margin-bottom:0.8rem;">
+                    <span class="badge ${classBadgeClass(cls.label)}">${cls.label}${cls.manual ? ' (手动)' : ''}</span>
+                    <span class="badge ${c.clientLevel && c.clientLevel.includes('金') ? 'level-gold' : ''}">${escapeHtml(c.clientLevel || '')}</span>
+                    <span class="badge ${c.intention && c.intention.includes('高') ? 'intent-high' : 'intent-mid'}">${escapeHtml(c.intention || '')}</span>
+                </div>
+                ${socialHtml}
+                <div style="margin-top:1rem; font-size:0.85rem; line-height:1.9;">
+                    <div><b>国家：</b>${escapeHtml(c.country) || '—'}</div>
+                    <div><b>行业：</b>${escapeHtml(c.industry) || '—'}</div>
+                    <div><b>产品线：</b>${escapeHtml(c.productLine) || '—'}</div>
+                    <div><b>规模：</b>${escapeHtml(c.scale) || '—'}</div>
+                    <div><b>来源：</b>${escapeHtml(c.source) || '—'}</div>
+                    <div><b>下次跟进：</b>${c.nextFollowDate || '—'}${c.nextAction ? '（' + escapeHtml(c.nextAction) + '）' : ''}</div>
+                </div>
+                <div style="margin-top:1rem;"><b style="font-size:0.85rem;">联系人</b><div style="margin-top:0.4rem;">${contactsHtml}</div></div>
+                <div style="margin-top:1rem;"><b style="font-size:0.85rem;">最近跟进记录</b><div style="margin-top:0.4rem;">${followHtml}</div></div>
+            `;
+            document.getElementById('viewClientEditBtn').onclick = () => {
+                document.getElementById('viewClientModal').style.display = 'none';
+                editClient(id);
+            };
+            document.getElementById('viewClientModal').style.display = 'flex';
+        };
 
         window.editClient = async function(id) {
             let c = clients.find(c => c.id === id);
@@ -858,6 +934,9 @@
             document.getElementById("followUpCycleDays").value = c.followUpCycleDays || "";
             document.getElementById("nextFollowDate").value = c.nextFollowDate || "";
             document.getElementById("nextAction").value = c.nextAction || "";
+            document.getElementById("website").value = c.website || "";
+            document.getElementById("linkedin").value = c.linkedin || "";
+            document.getElementById("facebook").value = c.facebook || "";
             document.getElementById("followNote").value = "";
             document.getElementById("contactsTableBody").innerHTML = "";
             let contacts = normalizeContacts(c);
