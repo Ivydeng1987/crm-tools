@@ -76,6 +76,7 @@
         .cls-repeat { background: #dcf5e3; color: #157a45; }
         .cls-pool { background: #dde8f0; color: #4a6a85; }
         .pool-badge { background: #fff0d9; color: #a56a1c; display: inline-block; padding: 0.3rem 0.8rem; border-radius: 30px; font-size: 0.75rem; cursor: pointer; }
+        .stale-lead-badge { background: #e0edfb; color: #1f5fa8; display: inline-block; padding: 0.3rem 0.8rem; border-radius: 30px; font-size: 0.75rem; }
         .cls-manual { border: 1px dashed #94a3b8; }
         .remind-badge { background: #ffe0e0; color: #b23c3c; }
         .action-icons i { font-size: 1.2rem; color: #57809f; margin: 0 6px; cursor: pointer; }
@@ -143,6 +144,7 @@
                     <div class="stat-item" id="hotLeadsStat" style="cursor:pointer;" onclick="toggleSpecialFilter('hotLeads')" title="点击查看高意向的客户"><span class="stat-value" id="hotLeads">0</span> <span class="stat-label">高意向</span></div>
                     <div class="stat-item" id="dueTodayStat" style="cursor:pointer;" onclick="toggleSpecialFilter('dueToday')" title="点击查看今日待跟进的客户"><span class="stat-value" id="dueTodayCount">0</span> <span class="stat-label">今日待跟进</span></div>
                     <div class="stat-item warn" id="lapsedStat" style="cursor:pointer;" onclick="toggleSpecialFilter('lapsedReturning')" title="点击查看老客户需跟进的客户"><span class="stat-value" id="lapsedCount">0</span> <span class="stat-label">老客户需跟进</span></div>
+                    <div class="stat-item" id="staleLeadStat" style="cursor:pointer;" onclick="toggleSpecialFilter('staleLead')" title="点击查看太久没联系的潜在客户"><span class="stat-value" id="staleLeadCount">0</span> <span class="stat-label">潜在客户太久未联系</span></div>
                 </div>
                 <div id="specialFilterBanner" style="display:none; margin-top:0.8rem;">
                     <span style="background:#fff0d9; color:#a56a1c; padding:0.4rem 1rem; border-radius:30px; font-size:0.8rem; display:inline-flex; align-items:center; gap:0.6rem;">
@@ -543,6 +545,21 @@
             return followCount >= PUBLIC_POOL_FOLLOW_THRESHOLD;
         }
 
+        // ========== 潜在客户太久没联系提醒：以"最后一次跟进记录日期"为参照，超过30天没跟进就提示 ==========
+        const LEAD_STALE_DAYS = 30;
+
+        function needsLeadFollowUp(client, classification, today) {
+            if (classification.label !== '潜在客户') return false;
+            if (client.nextFollowDate) return false; // 已经排了下次跟进日期，不重复提醒
+            if (client.inPublicPool) return false; // 已经在公海的不用再提示，公海那边有自己的入口
+            let followHistory = Array.isArray(client.followHistory) ? client.followHistory : [];
+            if (followHistory.length === 0) return false; // 还没跟进过，没有参照点，不判定为"太久没联系"
+            let lastDate = followHistory.reduce((max, f) => (f.date && f.date > max ? f.date : max), '');
+            if (!lastDate) return false;
+            let daysSince = Math.floor((new Date(today) - new Date(lastDate)) / 86400000);
+            return daysSince > LEAD_STALE_DAYS;
+        }
+
         window.movetoPublicPool = async function(id) {
             let c = clients.find(c => c.id === id);
             if (!c) return;
@@ -596,14 +613,15 @@
                 let cls = computeClassification(c);
                 let remind = needsFollowUpReminder(c, cls, today);
                 let poolSuggest = suggestPublicPool(c, cls);
-                return { c, cls, remind, poolSuggest };
+                let staleLead = needsLeadFollowUp(c, cls, today);
+                return { c, cls, remind, poolSuggest, staleLead };
             });
 
             if (classFilterValue) {
                 enriched = enriched.filter(x => x.cls.label === classFilterValue);
             }
 
-            // 特殊筛选（点"高意向"/"今日待跟进"/"老客户需跟进"卡片触发）只影响下面表格实际显示的行，
+            // 特殊筛选（点"高意向"/"今日待跟进"/"老客户需跟进"/"潜在客户太久未联系"卡片触发）只影响下面表格实际显示的行，
             // 不影响上面统计数字本身——这样点了筛选之后，数字不会跟着变得让人confused
             let displayList = enriched;
             if (specialFilterValue === 'hotLeads') {
@@ -612,6 +630,8 @@
                 displayList = enriched.filter(x => x.c.nextFollowDate === today);
             } else if (specialFilterValue === 'lapsedReturning') {
                 displayList = enriched.filter(x => x.remind);
+            } else if (specialFilterValue === 'staleLead') {
+                displayList = enriched.filter(x => x.staleLead);
             }
 
             // 按意向→客户等级排序：高意向优先，同意向内再按钻石>金牌>银牌>基础排
@@ -627,11 +647,12 @@
             });
 
             let html = "";
-            displayList.forEach(({c, cls, remind, poolSuggest}) => {
+            displayList.forEach(({c, cls, remind, poolSuggest, staleLead}) => {
                 let intentClass = c.intention.includes("高") ? "intent-high" : "intent-mid";
                 let levelClass = c.clientLevel.includes("金") ? "level-gold" : "";
                 let clsBadge = `<span class="badge ${classBadgeClass(cls.label)} ${cls.manual ? 'cls-manual' : ''}">${cls.label}${cls.manual ? ' (手动)' : ''}</span>`;
                 let remindBadge = remind ? `<span class="badge remind-badge">⚠️ 需跟进</span>` : '';
+                let staleBadge = staleLead ? `<span class="stale-lead-badge">⏰ 太久没联系</span>` : '';
                 let poolBadge = poolSuggest ? `<span class="pool-badge" onclick="movetoPublicPool('${c.id}')" title="点击移入公海">🌊 建议移入公海</span>` : '';
                 let followHistory = Array.isArray(c.followHistory) ? c.followHistory : [];
                 let lastFollow = followHistory.length ? followHistory[followHistory.length - 1] : null;
@@ -641,7 +662,7 @@
                 html += `<tr>
                     <td class="checkbox-col"><input type="checkbox" class="client-checkbox" value="${c.id}"></td>
                     <td><strong>${escapeHtml(primaryContact.name)}</strong>${moreContactsNote}<br><small>${escapeHtml(c.company) || '—'} | ${escapeHtml(c.country)}</small></td>
-                    <td>${clsBadge}${remindBadge ? '<br>' + remindBadge : ''}${poolBadge ? '<br>' + poolBadge : ''}</td>
+                    <td>${clsBadge}${remindBadge ? '<br>' + remindBadge : ''}${staleBadge ? '<br>' + staleBadge : ''}${poolBadge ? '<br>' + poolBadge : ''}</td>
                     <td>${escapeHtml(c.industry) || '—'}<br><small>${escapeHtml(c.productLine) || ''}</small></td>
                     <td><span class="badge ${levelClass}">${escapeHtml(c.clientLevel)}</span> <span class="badge ${intentClass}">${escapeHtml(c.intention)}</span></td>
                     <td><span class="badge source-badge">${escapeHtml(c.source) || '展会'}</span></td>
@@ -656,6 +677,7 @@
             document.getElementById("hotLeads").innerText = filtered.filter(c => c.intention.includes("高")).length;
             document.getElementById("dueTodayCount").innerText = filtered.filter(c => c.nextFollowDate === today).length;
             document.getElementById("lapsedCount").innerText = enriched.filter(x => x.remind).length;
+            document.getElementById("staleLeadCount").innerText = enriched.filter(x => x.staleLead).length;
             updateSpecialFilterBanner(displayList.length);
         }
 
@@ -674,11 +696,12 @@
             document.getElementById('hotLeadsStat').style.outline = specialFilterValue === 'hotLeads' ? '2px solid #ac3f3f' : 'none';
             document.getElementById('dueTodayStat').style.outline = specialFilterValue === 'dueToday' ? '2px solid #0e4b6e' : 'none';
             document.getElementById('lapsedStat').style.outline = specialFilterValue === 'lapsedReturning' ? '2px solid #ac3f3f' : 'none';
+            document.getElementById('staleLeadStat').style.outline = specialFilterValue === 'staleLead' ? '2px solid #1f5fa8' : 'none';
             if (!specialFilterValue) {
                 banner.style.display = 'none';
                 return;
             }
-            let labelMap = { hotLeads: '高意向', dueToday: '今日待跟进', lapsedReturning: '老客户需跟进' };
+            let labelMap = { hotLeads: '高意向', dueToday: '今日待跟进', lapsedReturning: '老客户需跟进', staleLead: '潜在客户太久未联系' };
             text.innerText = `正在筛选：${labelMap[specialFilterValue]}（共 ${count} 个客户）`;
             banner.style.display = 'block';
         }
