@@ -1,1183 +1,689 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="robots" content="noindex, nofollow, noarchive">
-    <title>外贸CRM · 云端版 v2</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            background: #f0f6fc;
-            font-family: 'Inter', system-ui, sans-serif;
-            padding: 2rem 1.8rem;
-            color: #1c2d3f;
-        }
-        .lock-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(14, 75, 110, 0.95); backdrop-filter: blur(12px); z-index: 10000;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .lock-card {
-            background: white; border-radius: 2rem; padding: 2rem; max-width: 400px; width: 90%; text-align: center;
-        }
-        .lock-card h2 { color: #0e4b6e; }
-        .lock-input {
-            width: 100%; padding: 0.9rem; border-radius: 60px; border: 1px solid #c4d6e8;
-            margin: 1rem 0; text-align: center; font-size: 1rem;
-        }
-        .lock-btn {
-            background: #0e4b6e; color: white; border: none; padding: 0.8rem;
-            border-radius: 60px; width: 100%; cursor: pointer; font-weight: 600;
-        }
-        .lock-btn:disabled { background: #94a3b8; cursor: not-allowed; }
-        .lock-error { color: #ba4b4b; margin-top: 0.8rem; }
-        .main-app { display: none; max-width: 1600px; margin: 0 auto; }
-        
-        .header { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1.2rem; margin-bottom: 2rem; }
-        .logo-area { display: flex; align-items: center; gap: 1rem; }
-        .logo-icon { background: #0e4b6e; color: white; width: 52px; height: 52px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 2rem; }
-        .title h1 { font-size: 2rem; font-weight: 600; }
-        .title span { background: #e1edf7; color: #0e4b6e; padding: 0.2rem 1.2rem; border-radius: 30px; font-size: 0.85rem; }
-        .stats { background: white; padding: 0.9rem 2rem; border-radius: 60px; display: flex; gap: 2rem; flex-wrap: wrap; }
-        .stat-item { display: flex; align-items: center; gap: 0.7rem; }
-        .stat-value { font-weight: 700; font-size: 1.5rem; color: #103f5c; }
-        .stat-label { color: #54738f; }
-        .stat-item.warn .stat-value { color: #ac3f3f; }
-
-        .main-card { background: white; border-radius: 32px; padding: 2rem; margin-bottom: 2rem; }
-        .toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1.5rem; margin-bottom: 2rem; }
-        .search-area { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
-        .search-box { background: #f3f9ff; border-radius: 48px; display: flex; align-items: center; padding-left: 1.5rem; border: 1px solid #cde0ed; }
-        .search-box input { border: none; background: transparent; padding: 0.75rem 1rem; width: 220px; outline: none; }
-        .search-box button { background: #0e4b6e; border: none; color: white; padding: 0.5rem 1.8rem; border-radius: 40px; cursor: pointer; }
-        .filter-select { padding: 0.6rem 1rem; border-radius: 40px; border: 1px solid #cde0ed; background: white; font-size: 0.85rem; }
-        .btn-secondary { background: white; border: 1px solid #b9d2e7; color: #1f4a66; padding: 0.6rem 1.5rem; border-radius: 40px; cursor: pointer; }
-        .btn-primary { background: #0e4b6e; color: white; border: none; padding: 0.8rem 2.2rem; border-radius: 40px; font-weight: 600; cursor: pointer; }
-        .btn-export { background: #2d6e4b; color: white; border: none; padding: 0.8rem 2rem; border-radius: 40px; cursor: pointer; }
-        .btn-import { background: #8a6d3b; color: white; border: none; padding: 0.8rem 2rem; border-radius: 40px; cursor: pointer; }
-        .btn-backup { background: #54738f; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 40px; cursor: pointer; }
-        .change-pwd-btn { background: #54738f; color: white; border: none; padding: 0.5rem 1rem; border-radius: 40px; font-size: 0.8rem; cursor: pointer; margin-left: 0.5rem; }
-        
-        .table-wrapper { overflow-x: auto; border-radius: 24px; border: 1px solid #e3eff8; margin: 1.8rem 0 1rem; }
-        table { width: 100%; border-collapse: collapse; min-width: 1100px; background: white; font-size: 0.9rem; }
-        th { background: #f0f7fd; padding: 1rem 0.8rem; font-weight: 600; color: #1f4d6e; text-align: left; }
-        td { padding: 0.8rem; border-bottom: 1px solid #e7f0f7; vertical-align: middle; }
-        .client-name { font-weight: 600; }
-        .badge { display: inline-block; padding: 0.3rem 0.8rem; border-radius: 30px; font-size: 0.75rem; margin: 2px 0; }
-        .intent-high { background: #ffebe7; color: #ac3f3f; }
-        .intent-mid { background: #e2f0e8; color: #1b7355; }
-        .source-badge { background: #e1d7f0; color: #4f378b; }
-        .level-gold { background: #f8e3b3; color: #8b6b2b; }
-        .cls-lead { background: #e0edfb; color: #1f5fa8; }
-        .cls-sample { background: #fdeecb; color: #96650f; }
-        .cls-repeat { background: #dcf5e3; color: #157a45; }
-        .cls-pool { background: #dde8f0; color: #4a6a85; }
-        .pool-badge { background: #fff0d9; color: #a56a1c; display: inline-block; padding: 0.3rem 0.8rem; border-radius: 30px; font-size: 0.75rem; cursor: pointer; }
-        .stale-lead-badge { background: #e0edfb; color: #1f5fa8; display: inline-block; padding: 0.3rem 0.8rem; border-radius: 30px; font-size: 0.75rem; }
-        .cls-manual { border: 1px dashed #94a3b8; }
-        .remind-badge { background: #ffe0e0; color: #b23c3c; }
-        .action-icons i { font-size: 1.2rem; color: #57809f; margin: 0 6px; cursor: pointer; }
-        .action-icons i:hover { color: #0e4b6e; }
-        .checkbox-col { width: 40px; text-align: center; }
-        .row-deleted { opacity: 0.45; }
-        
-        .form-panel {
-            background: #f9fdff; border-radius: 32px; padding: 2rem;
-            margin-top: 2rem; border: 1px solid #d3e6f5;
-        }
-        .form-title { font-size: 1.5rem; font-weight: 600; margin-bottom: 1.5rem; color: #13445f; }
-        .grid-3 {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        .form-group label { font-size: 0.7rem; font-weight: 600; color: #3f688b; display: block; margin-bottom: 3px; }
-        .form-group input, .form-group select, .form-group textarea {
-            width: 100%; padding: 0.6rem; border: 1px solid #c4d6e8;
-            border-radius: 16px; font-size: 0.85rem;
-        }
-        .btn-group { display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap; }
-        .footer-note { text-align: center; margin-top: 2rem; color: #5d7f9a; }
-        .sync-status {
-            background: #e6f3fa; padding: 8px 16px; border-radius: 40px;
-            font-size: 0.75rem; display: inline-flex; align-items: center; gap: 0.5rem;
-        }
-        .save-toast {
-            position: fixed; bottom: 30px; right: 30px; background: #0e4b6e; color: white;
-            padding: 12px 24px; border-radius: 50px; z-index: 9999;
-            transform: translateY(100px); opacity: 0; transition: 0.3s;
-        }
-        .save-toast.show { transform: translateY(0); opacity: 1; }
-        .save-toast.error { background: #ac3f3f; }
-        #importFile { display: none; }
-        .cloud-icon { color: #2d6e4b; margin-right: 4px; }
-        .hint-box { background: #fff8e6; border: 1px solid #f0d999; border-radius: 16px; padding: 0.8rem 1.2rem; font-size: 0.8rem; color: #7a5c14; margin-bottom: 1rem; }
-    </style>
-</head>
-<body>
-    <div id="lockScreen" class="lock-screen">
-        <div class="lock-card">
-            <h2><i class="fas fa-lock"></i> 外贸CRM</h2>
-            <p>请输入密码</p>
-            <input type="password" id="passwordInput" class="lock-input" placeholder="密码" autofocus>
-            <button id="unlockBtn" class="lock-btn" disabled>正在校验云端密码...</button>
-            <div id="lockError" class="lock-error"></div>
-        </div>
-    </div>
-
-    <div id="mainApp" class="main-app">
-        <div class="container">
-            <div id="saveToast" class="save-toast"><i class="fas fa-cloud-upload-alt"></i> 已同步到云端</div>
-            
-            <div class="header">
-                <div class="logo-area">
-                    <div class="logo-icon"><i class="fas fa-cloud-upload-alt"></i></div>
-                    <div class="title">
-                        <h1>刀具·泵阀 CRM <button id="changePwdBtn" class="change-pwd-btn"><i class="fas fa-key"></i> 修改密码</button></h1>
-                        <span><i class="fas fa-database"></i> 云端同步 | 多设备自动同步</span>
-                    </div>
-                </div>
-                <div class="stats">
-                    <div class="stat-item"><span class="stat-value" id="totalClients">0</span> <span class="stat-label">总客户</span></div>
-                    <div class="stat-item" id="hotLeadsStat" style="cursor:pointer;" onclick="toggleSpecialFilter('hotLeads')" title="点击查看高意向的客户"><span class="stat-value" id="hotLeads">0</span> <span class="stat-label">高意向</span></div>
-                    <div class="stat-item" id="dueTodayStat" style="cursor:pointer;" onclick="toggleSpecialFilter('dueToday')" title="点击查看今日待跟进的客户"><span class="stat-value" id="dueTodayCount">0</span> <span class="stat-label">今日待跟进</span></div>
-                    <div class="stat-item warn" id="lapsedStat" style="cursor:pointer;" onclick="toggleSpecialFilter('lapsedReturning')" title="点击查看老客户需跟进的客户"><span class="stat-value" id="lapsedCount">0</span> <span class="stat-label">老客户需跟进</span></div>
-                    <div class="stat-item" id="staleLeadStat" style="cursor:pointer;" onclick="toggleSpecialFilter('staleLead')" title="点击查看太久没联系的潜在客户"><span class="stat-value" id="staleLeadCount">0</span> <span class="stat-label">潜在客户太久未联系</span></div>
-                </div>
-                <div id="specialFilterBanner" style="display:none; margin-top:0.8rem;">
-                    <span style="background:#fff0d9; color:#a56a1c; padding:0.4rem 1rem; border-radius:30px; font-size:0.8rem; display:inline-flex; align-items:center; gap:0.6rem;">
-                        <span id="specialFilterText"></span>
-                        <span style="cursor:pointer; font-weight:700;" onclick="clearSpecialFilter()">✕ 清除筛选</span>
-                    </span>
-                </div>
-            </div>
-
-            <div class="main-card">
-                <div class="toolbar">
-                    <div class="search-area">
-                        <div class="search-box">
-                            <i class="fas fa-search"></i>
-                            <input type="text" id="searchInput" placeholder="搜索姓名/公司/行业...">
-                            <button id="searchBtn">筛选</button>
-                        </div>
-                        <select class="filter-select" id="classFilter">
-                            <option value="">全部分类</option>
-                            <option value="潜在客户">潜在客户</option>
-                            <option value="样品客户">样品客户</option>
-                            <option value="老客户">老客户</option>
-                        </select>
-                        <button class="btn-secondary" id="clearSearchBtn"><i class="fas fa-redo-alt"></i> 重置</button>
-                        <button class="btn-export" id="exportAllBtn"><i class="fas fa-file-excel"></i> 导出Excel</button>
-                        <button class="btn-import" id="importBtn"><i class="fas fa-file-import"></i> 导入Excel</button>
-                        <button class="btn-backup" id="backupBtn"><i class="fas fa-shield-alt"></i> 备份全部数据</button>
-                        <button class="btn-backup" id="importBackupBtn"><i class="fas fa-cloud-download-alt"></i> 导入备份数据</button>
-                        <input type="file" id="importBackupFile" accept=".json" style="display:none;">
-                        <button class="btn-secondary" id="yearStatsBtn"><i class="fas fa-chart-bar"></i> 年度新客户统计</button>
-                        <button class="btn-secondary" id="publicPoolBtn"><i class="fas fa-water"></i> 公海</button>
-                        <div id="syncStatus" class="sync-status"><i class="fas fa-cloud-upload-alt cloud-icon"></i> 同步中...</div>
-                        <button class="btn-primary" id="retrySyncBtn" onclick="retrySync()" style="display:none;"><i class="fas fa-sync-alt"></i> 重试同步</button>
-                    </div>
-                    <button class="btn-primary" id="showAddFormBtn"><i class="fas fa-plus-circle"></i> 新增客户</button>
-                </div>
-
-                <input type="file" id="importFile" accept=".xlsx,.xls">
-
-                <div class="table-wrapper">
-                    <table id="clientTable">
-                        <thead> <tr><th class="checkbox-col"><input type="checkbox" id="selectAllCheckbox"></th><th>客户/公司</th><th>分类</th><th>行业</th><th>等级/意向</th><th>来源</th><th>最近跟进</th><th>下次跟进</th><th>操作</th></tr> </thead>
-                        <tbody id="tableBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="form-panel" id="formPanel" style="display: none;">
-                <div class="form-title" id="formTitleText">新增外贸客户</div>
-                <div class="hint-box"><i class="fas fa-info-circle"></i> 客户分类（潜在/样品/老客户）会根据"关联下单系统客户"自动统计下单次数计算：0单=潜在客户，1单=样品客户，2单及以上=老客户。也可以手动改成固定值，覆盖自动判断（适合下单系统里还没补录的老客户历史数据）。</div>
-                <div class="grid-3">
-                    <div class="form-group"><label>公司 *</label><input type="text" id="company"></div>
-                    <div class="form-group"><label>关联下单系统客户（用于自动统计订单）</label><select id="linkedCustomerSelect"><option value="">-- 不关联 --</option></select></div>
-                    <div class="form-group"><label>国家</label><input type="text" id="country" value="China"></div>
-                    <div class="form-group"><label>主营行业</label><input type="text" id="industry"></div>
-                    <div class="form-group"><label>产品线</label><input type="text" id="productLine"></div>
-                    <div class="form-group"><label>规模</label><select id="scale"><option>1-10人</option><option>11-50人</option><option>51-200人</option><option>201-500人</option><option>500+人</option></select></div>
-                    <div class="form-group"><label>客户等级</label><select id="clientLevel"><option>钻石⭐</option><option>金牌🥇</option><option>银牌🥈</option><option>基础⚪</option></select></div>
-                    <div class="form-group"><label>意向等级</label><select id="intention"><option>高意向🔥</option><option>中意向⭐</option><option>低意向🍃</option></select></div>
-                    <div class="form-group"><label>客户来源</label><select id="source"><option>展会</option><option>网络搜索</option><option>客户推荐</option><option>社交媒体</option><option>官网</option><option>B端平台</option></select></div>
-                    <div class="form-group"><label>分类覆盖（不选=自动判断）</label><select id="classOverride"><option value="">-- 自动判断 --</option><option value="潜在客户">强制：潜在客户</option><option value="样品客户">强制：样品客户</option><option value="老客户">强制：老客户</option></select></div>
-                    <div class="form-group"><label>老客户跟进周期（天）</label><input type="number" id="followUpCycleDays" placeholder="如：90"></div>
-                    <div class="form-group"><label>下次跟进</label><input type="date" id="nextFollowDate"></div>
-                    <div class="form-group"><label>下一步动作</label><input type="text" id="nextAction"></div>
-                    <div class="form-group"><label>官网</label><input type="text" id="website" placeholder="https://..."></div>
-                    <div class="form-group"><label>领英 LinkedIn</label><input type="text" id="linkedin" placeholder="https://linkedin.com/..."></div>
-                    <div class="form-group"><label>Facebook</label><input type="text" id="facebook" placeholder="https://facebook.com/..."></div>
-                    <input type="hidden" id="editId">
-                </div>
-
-                <div class="form-group" style="margin-bottom:1rem;">
-                    <label>联系人（一家公司可以有多个联系人，点右侧+号添加）</label>
-                    <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
-                        <thead>
-                            <tr>
-                                <th style="text-align:left;padding:6px 8px;background:#f0f7fd;border-radius:8px 0 0 8px;">姓名</th>
-                                <th style="text-align:left;padding:6px 8px;background:#f0f7fd;">职位</th>
-                                <th style="text-align:left;padding:6px 8px;background:#f0f7fd;">邮箱</th>
-                                <th style="text-align:left;padding:6px 8px;background:#f0f7fd;">电话</th>
-                                <th style="padding:6px 8px;background:#f0f7fd;border-radius:0 8px 8px 0;"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="contactsTableBody"></tbody>
-                    </table>
-                    <button type="button" class="btn-secondary" style="margin-top:8px;padding:0.4rem 1rem;font-size:0.8rem;" onclick="addContactRow()"><i class="fas fa-plus"></i> 添加联系人</button>
-                </div>
-
-                <div class="form-group" style="margin-bottom:1rem;"><label>新增一条跟进记录（会追加到历史，不会覆盖之前的）</label><textarea id="followNote" rows="2" placeholder="这次跟进聊了什么..."></textarea></div>
-                <div id="followHistoryBox"></div>
-                <div class="btn-group">
-                    <button class="btn-primary" id="saveClientBtn">保存</button>
-                    <button class="btn-secondary" id="cancelFormBtn">取消</button>
-                </div>
-            </div>
-
-            <div class="footer-note">🔒 云端同步 | 任何电脑打开自动同步 | 换电脑数据不丢失</div>
-        </div>
-    </div>
-
-    <div id="yearStatsModal" style="display:none; position:fixed; inset:0; background:rgba(14,75,110,0.5); z-index:9998; align-items:center; justify-content:center;">
-        <div style="background:white; border-radius:24px; padding:2rem; max-width:420px; width:90%; max-height:80vh; overflow-y:auto;">
-            <h3 style="color:#0e4b6e; margin-bottom:0.5rem;"><i class="fas fa-chart-bar"></i> 年度新客户统计</h3>
-            <p style="color:#5d7f9a; font-size:0.8rem; margin-bottom:1rem;">只统计CRM已建档、且"关联下单系统客户"确实有订单的客户——按其首笔订单年份（潜在客户→样品客户的转化时间点）计数。没在CRM建档或没关联的，不计入。</p>
-            <div id="yearStatsBody"></div>
-            <button class="btn-secondary" style="width:100%; margin-top:1rem;" onclick="document.getElementById('yearStatsModal').style.display='none';">关闭</button>
-        </div>
-    </div>
-
-    <div id="publicPoolModal" style="display:none; position:fixed; inset:0; background:rgba(14,75,110,0.5); z-index:9998; align-items:center; justify-content:center;">
-        <div style="background:white; border-radius:24px; padding:2rem; max-width:600px; width:90%; max-height:80vh; overflow-y:auto;">
-            <h3 style="color:#0e4b6e; margin-bottom:0.5rem;"><i class="fas fa-water"></i> 公海</h3>
-            <p style="color:#5d7f9a; font-size:0.8rem; margin-bottom:1rem;">跟进满10次仍未转化的潜在客户会被建议移入这里，从主列表隐藏。随时可以移回主列表重新跟进。</p>
-            <div id="publicPoolBody"></div>
-            <button class="btn-secondary" style="width:100%; margin-top:1rem;" onclick="document.getElementById('publicPoolModal').style.display='none';">关闭</button>
-        </div>
-    </div>
-
-    <div id="viewClientModal" style="display:none; position:fixed; inset:0; background:rgba(14,75,110,0.5); z-index:9998; align-items:center; justify-content:center;">
-        <div style="background:white; border-radius:24px; padding:2rem; max-width:560px; width:90%; max-height:85vh; overflow-y:auto;">
-            <div id="viewClientBody"></div>
-            <div style="display:flex; gap:0.8rem; margin-top:1.2rem;">
-                <button class="btn-primary" id="viewClientEditBtn" style="flex:1; border-radius:40px; padding:0.7rem;">编辑此客户</button>
-                <button class="btn-secondary" style="flex:1;" onclick="document.getElementById('viewClientModal').style.display='none';">关闭</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // ========== 配置（Key已藏进Worker，不再暴露）==========
-        const BIN_ID = "69ca405a36566621a85fc22b";
-        const CUSTOMER_ORDER_BIN_ID = "6a7e7e1bda38895dfee28007"; // 客户下单系统Bin（只读，用于统计订单次数）
-        const QUOTATION_BIN_ID = "6a82ce05da38895dfeee1354"; // 报价系统Bin（只读，用于查看该客户的报价记录）
-        const WORKER_URL = "https://sunlit-proxy.ivy-3fc.workers.dev";
-        const ACCESS_TOKEN = "RBhCP4O1yvwxN7nB9oMoQCzuj2ZnF3M9daOE76fRVtk";
-
-        let currentPwd = localStorage.getItem("crm_password") || "admin123";
-        let clients = [];
-        let searchKeyword = "";
-        let classFilterValue = "";
-        let specialFilterValue = ""; // '' | 'dueToday' | 'lapsedReturning' —— 点统计卡片触发的快捷筛选
-        let editId = null;
-        let customerOrderCache = null; // 缓存下单系统的订单+客户目录，避免重复拉取
-
-        function unlock() {
-            let pwd = document.getElementById("passwordInput").value;
-            if (pwd === currentPwd) {
-                document.getElementById("lockScreen").style.display = "none";
-                document.getElementById("mainApp").style.display = "block";
-                initCRM();
-            } else {
-                document.getElementById("lockError").innerText = "❌ 密码错误";
-            }
-        }
-
-        async function changePwd() {
-            let old = prompt("当前密码:");
-            if (old !== currentPwd) { alert("密码错误"); return; }
-            let newp = prompt("新密码(至少4位):");
-            if (!newp || newp.length < 4) { alert("至少4位"); return; }
-            let confirmp = prompt("确认新密码:");
-            if (newp !== confirmp) { alert("不一致"); return; }
-            currentPwd = newp;
-            localStorage.setItem("crm_password", currentPwd);
-            await saveToCloud();
-            alert("✅ 密码修改成功，已同步到云端");
-        }
-
-        // ========== 云端同步（走Worker中转，不暴露真实Key）==========
-        let cloudEverLoaded = false; // 本次打开页面后是否成功从云端读取过数据
-
-        async function loadFromCloud() {
-            try {
-                const response = await fetch(`${WORKER_URL}/bin/${BIN_ID}/latest`, {
-                    headers: { 'X-Access-Token': ACCESS_TOKEN }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    let record = data.record;
-                    if (record && typeof record === 'object' && !Array.isArray(record)) {
-                        clients = Array.isArray(record.clients) ? record.clients : [];
-                        if (record.password) {
-                            currentPwd = record.password;
-                            localStorage.setItem("crm_password", currentPwd);
-                        }
-                    } else if (Array.isArray(record)) {
-                        // 兼容旧格式：云端之前直接存的是客户数组
-                        clients = record;
-                    }
-                    cloudEverLoaded = true;
-                    saveLocal();
-                    render();
-                    updateSyncStatus(true, "已同步云端");
-                    document.getElementById('retrySyncBtn').style.display = 'none';
-                } else {
-                    throw new Error("加载失败");
-                }
-            } catch (e) {
-                console.log("加载云端失败，使用本地备份", e);
-                loadLocal();
-                updateSyncStatus(false, "离线模式");
-                document.getElementById('retrySyncBtn').style.display = 'inline-flex';
-            }
-        }
-
-        async function saveToCloud() {
-            try {
-                const response = await fetch(`${WORKER_URL}/bin/${BIN_ID}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Access-Token': ACCESS_TOKEN
-                    },
-                    body: JSON.stringify({ password: currentPwd, clients: clients })
-                });
-                if (response.ok) {
-                    updateSyncStatus(true, "已同步云端");
-                    showToast("已同步到云端");
-                    document.getElementById('retrySyncBtn').style.display = 'none';
-                } else {
-                    updateSyncStatus(false, "同步失败");
-                    document.getElementById('retrySyncBtn').style.display = 'inline-flex';
-                }
-            } catch (e) {
-                console.error("保存失败", e);
-                updateSyncStatus(false, "同步失败");
-                document.getElementById('retrySyncBtn').style.display = 'inline-flex';
-            }
-        }
-
-        function saveLocal() { localStorage.setItem("crm_backup", JSON.stringify(clients)); }
-        function loadLocal() {
-            const stored = localStorage.getItem("crm_backup");
-            if (stored) clients = JSON.parse(stored);
-            else clients = [];
-            render();
-        }
-
-        // 手动重试：还没成功读过云端时重试=重新读（避免拿本地空/旧数据覆盖云端）；
-        // 已经成功读过云端、是后续保存失败时，重试=重新推送当前数据
-        async function retrySync() {
-            let btn = document.getElementById('retrySyncBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-sync-alt"></i> 正在重试...';
-            if (!cloudEverLoaded) {
-                await loadFromCloud();
-            } else {
-                await saveToCloud();
-            }
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-sync-alt"></i> 重试同步';
-        }
-
-        function backupAllData() {
-            let payload = { exportedAt: new Date().toISOString(), clients };
-            let blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-            let url = URL.createObjectURL(blob);
-            let a = document.createElement('a');
-            a.href = url;
-            a.download = `外贸CRM_备份_${getToday()}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            showToast('备份文件已下载');
-        }
-
-        // 通用合并工具：按唯一key合并，备份里有、当前数据里没有的才补进来；
-        // 已经存在的（key相同）一律跳过，不覆盖当前正在用的数据，避免用旧备份把新改动冲掉
-        function mergeArrayByKey(current, backupArr, keyFn) {
-            if (!Array.isArray(backupArr)) return 0;
-            let existingKeys = new Set(current.map(keyFn).filter(k => k !== undefined && k !== null && k !== ''));
-            let added = 0;
-            backupArr.forEach(item => {
-                let key = keyFn(item);
-                if (key === undefined || key === null || key === '') return;
-                if (!existingKeys.has(key)) {
-                    current.push(item);
-                    existingKeys.add(key);
-                    added++;
-                }
-            });
-            return added;
-        }
-
-        // 导入之前"备份全部数据"导出的那种JSON文件——不是Excel，是原始数据本身，
-        // 用来应对"云端一度连不上、客户资料只存在本地这台设备"的情况：换一台设备/重新打开时，
-        // 把之前下载的备份文件导入进来，跟当前数据合并，不会覆盖已经在用的记录。
-        async function importBackupData(event) {
-            let file = event.target.files[0];
-            if (!file) return;
-            try {
-                let text = await file.text();
-                let backup = JSON.parse(text);
-
-                if (!backup || typeof backup !== 'object' || Array.isArray(backup)) {
-                    showToast('文件格式不对，这不是一份有效的备份文件', 'error');
-                    return;
-                }
-                if (!Array.isArray(backup.clients)) {
-                    showToast('文件里没有找到客户数据，确认是不是CRM导出的备份文件', 'error');
-                    return;
-                }
-
-                let addedClients = mergeArrayByKey(clients, backup.clients, c => c.id);
-
-                if (addedClients === 0) {
-                    showToast('导入完成，但备份里的客户当前数据里都已经有了，没有新增任何内容');
-                } else {
-                    saveLocal();
-                    await saveToCloud();
-                    await render();
-                    showToast(`导入完成：新增 ${addedClients} 个客户`);
-                }
-            } catch (e) {
-                showToast('导入失败，文件可能已损坏或格式不对：' + e.message, 'error');
-            } finally {
-                event.target.value = ''; // 清空选择，方便需要时重复导入同一个文件
-            }
-        }
-
-        // ========== 只读拉取客户下单系统数据（用于自动统计订单次数）==========
-        async function fetchCustomerOrderData() {
-            if (customerOrderCache) return customerOrderCache;
-            try {
-                let res = await fetch(`${WORKER_URL}/bin/${CUSTOMER_ORDER_BIN_ID}/latest`, { headers: { 'X-Access-Token': ACCESS_TOKEN } });
-                if (res.ok) {
-                    let json = await res.json();
-                    let r = json.record;
-                    if (r && typeof r === 'object') {
-                        customerOrderCache = {
-                            orders: Array.isArray(r.orders) ? r.orders : [],
-                            customers: Array.isArray(r.customers) ? r.customers : []
-                        };
-                        return customerOrderCache;
-                    }
-                }
-            } catch (e) { console.error('拉取下单系统数据失败:', e); }
-            customerOrderCache = { orders: [], customers: [] };
-            return customerOrderCache;
-        }
-
-        // ========== 只读拉取报价系统数据（用于查看某客户的报价记录）==========
-        let quotationCache = null;
-        async function fetchQuotationData() {
-            if (quotationCache) return quotationCache;
-            try {
-                let res = await fetch(`${WORKER_URL}/bin/${QUOTATION_BIN_ID}/latest`, { headers: { 'X-Access-Token': ACCESS_TOKEN } });
-                if (res.ok) {
-                    let json = await res.json();
-                    let r = json.record;
-                    if (r && typeof r === 'object' && Array.isArray(r.quotes)) {
-                        quotationCache = r.quotes.filter(q => !q.deleted);
-                        return quotationCache;
-                    }
-                }
-            } catch (e) { console.error('拉取报价系统数据失败:', e); }
-            quotationCache = [];
-            return quotationCache;
-        }
-
-        window.viewQuoteHistory = async function(id) {
-            let c = clients.find(c => c.id === id);
-            if (!c) return;
-            let allQuotes = await fetchQuotationData();
-            let normalize = s => (s || '').trim().toLowerCase();
-            let targetName = normalize(c.company);
-            let matching = allQuotes.filter(q => normalize(q.customerCompany) === targetName);
-            matching.sort((a, b) => (b.quoteDate || '').localeCompare(a.quoteDate || ''));
-
-            if (matching.length === 0) {
-                alert(`${c.company} 目前没有报价记录\n\n（匹配依据是CRM的"公司"字段和报价系统的客户名称——已忽略首尾空格和大小写差异。如果确实报过价还是查不到，可能是报价单当时没有真正同步到云端，回报价系统那边刷新页面确认一下那份报价单是否还在、右上角状态是否显示"已同步云端"）`);
-                return;
-            }
-            let lines = matching.map(q => {
-                let itemCount = (q.items || []).length;
-                return `${q.quoteDate}　${q.quoteNo}　${q.series}　${itemCount}条货品`;
-            });
-            alert(`${c.company} 的报价记录（共${matching.length}份）：\n\n${lines.join('\n')}`);
-        };
-
-        function updateSyncStatus(isOnline, msg) {
-            const el = document.getElementById("syncStatus");
-            if (isOnline) {
-                el.innerHTML = '<i class="fas fa-cloud-upload-alt cloud-icon"></i> ' + msg;
-                el.style.background = "#d9e6cf";
-            } else {
-                el.innerHTML = '<i class="fas fa-database"></i> ' + msg;
-                el.style.background = "#f0e2d4";
-            }
-        }
-
-        function showToast(msg, type) {
-            const toast = document.getElementById("saveToast");
-            toast.innerHTML = '<i class="fas fa-check-circle"></i> ' + msg;
-            toast.className = 'save-toast' + (type === 'error' ? ' error' : '');
-            toast.classList.add("show");
-            setTimeout(() => toast.classList.remove("show"), 2500);
-        }
-
-        function getToday() { return new Date().toISOString().slice(0,10); }
-        function genId() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
-        function escapeHtml(str) { if(!str) return ''; return String(str).replace(/[&<>]/g, m => m==='&'?'&amp;':m==='<'?'&lt;':m==='>'?'&gt;':m); }
-
-        // ========== 客户分类 + 老客户/样品客户跟进提醒 ==========
-        // 根据关联的下单系统客户名，统计真实订单次数：0单=潜在客户，1单=样品客户，2单及以上=老客户
-        function computeOrderStats(linkedCompany) {
-            if (!linkedCompany || !customerOrderCache) return { count: 0, lastOrderDate: null };
-            let matching = customerOrderCache.orders.filter(o => !o.deleted && o.customerCompany === linkedCompany);
-            let count = matching.length;
-            let lastOrderDate = matching.reduce((max, o) => {
-                let d = o.orderDate || '';
-                return d > max ? d : max;
-            }, '');
-            return { count, lastOrderDate: lastOrderDate || null };
-        }
-
-        const DEFAULT_FOLLOW_UP_CYCLE_DAYS = 90; // 默认一个季度提醒一次
-
-        function computeClassification(client) {
-            // 不管有没有手动覆盖分类标签，订单统计（次数/最近下单日）都照实计算，
-            // 这样即使手动强制了分类，跟进提醒依然能用到真实的最近下单日期
-            let stats = computeOrderStats(client.linkedCustomerCompany);
-            let autoLabel = stats.count === 0 ? '潜在客户' : (stats.count === 1 ? '样品客户' : '老客户');
-            if (client.classOverride) {
-                return { label: client.classOverride, manual: true, orderCount: stats.count, lastOrderDate: stats.lastOrderDate };
-            }
-            return { label: autoLabel, manual: false, orderCount: stats.count, lastOrderDate: stats.lastOrderDate };
-        }
-
-        // 老客户和样品客户都需要跟进提醒；没单独设置周期的，默认按一个季度算
-        function needsFollowUpReminder(client, classification, today) {
-            if (classification.label !== '老客户' && classification.label !== '样品客户') return false;
-            let cycleDays = client.followUpCycleDays ? parseInt(client.followUpCycleDays) : DEFAULT_FOLLOW_UP_CYCLE_DAYS;
-            let lastOrderDate = classification.lastOrderDate;
-            if (!lastOrderDate) return false;
-            let daysSince = Math.floor((new Date(today) - new Date(lastOrderDate)) / 86400000);
-            return daysSince > cycleDays;
-        }
-
-        function classBadgeClass(label) {
-            if (label === '潜在客户') return 'cls-lead';
-            if (label === '样品客户') return 'cls-sample';
-            if (label === '公海') return 'cls-pool';
-            return 'cls-repeat';
-        }
-
-        // ========== 公海：潜在客户跟进满10次、始终没下单，提示是否移入公海（需要手动确认，系统不会自动移）==========
-        const PUBLIC_POOL_FOLLOW_THRESHOLD = 10;
-
-        function suggestPublicPool(client, classification) {
-            if (client.inPublicPool) return false; // 已经在公海了，不用再提示
-            if (classification.label !== '潜在客户') return false; // 只针对从没转化过的潜在客户
-            let followCount = Array.isArray(client.followHistory) ? client.followHistory.length : 0;
-            return followCount >= PUBLIC_POOL_FOLLOW_THRESHOLD;
-        }
-
-        // ========== 潜在客户太久没联系提醒：以"最后一次跟进记录日期"为参照，超过30天没跟进就提示 ==========
-        const LEAD_STALE_DAYS = 30;
-
-        function needsLeadFollowUp(client, classification, today) {
-            if (classification.label !== '潜在客户') return false;
-            if (client.nextFollowDate) return false; // 已经排了下次跟进日期，不重复提醒
-            if (client.inPublicPool) return false; // 已经在公海的不用再提示，公海那边有自己的入口
-            let followHistory = Array.isArray(client.followHistory) ? client.followHistory : [];
-            if (followHistory.length === 0) return false; // 还没跟进过，没有参照点，不判定为"太久没联系"
-            let lastDate = followHistory.reduce((max, f) => (f.date && f.date > max ? f.date : max), '');
-            if (!lastDate) return false;
-            let daysSince = Math.floor((new Date(today) - new Date(lastDate)) / 86400000);
-            return daysSince > LEAD_STALE_DAYS;
-        }
-
-        window.movetoPublicPool = async function(id) {
-            let c = clients.find(c => c.id === id);
-            if (!c) return;
-            if (!confirm('确定把这个客户移入公海吗？移入后会从主列表隐藏，可以在"🌊 公海"里找回。')) return;
-            c.inPublicPool = true;
-            c.publicPoolAt = getToday();
-            saveLocal();
-            await saveToCloud();
-            await render();
-            showToast('已移入公海');
-        };
-
-        window.reactivateFromPublicPool = async function(id) {
-            let c = clients.find(c => c.id === id);
-            if (!c) return;
-            c.inPublicPool = false;
-            c.publicPoolAt = null;
-            saveLocal();
-            await saveToCloud();
-            await render();
-            renderPublicPoolList();
-            showToast('已从公海移回主列表');
-        };
-
-        // ========== 关联客户选择器（从下单系统客户库拉取）==========
-        async function populateLinkedCustomerSelect() {
-            let data = await fetchCustomerOrderData();
-            let sel = document.getElementById('linkedCustomerSelect');
-            let current = sel.value;
-            sel.innerHTML = '<option value="">-- 不关联 --</option>' +
-                data.customers.map(c => `<option value="${escapeHtml(c.company)}">${escapeHtml(c.shortName ? c.shortName + ' - ' : '')}${escapeHtml(c.company)}</option>`).join('');
-            sel.value = current;
-        }
-
-        // ========== 渲染列表 ==========
-        async function render() {
-            await fetchCustomerOrderData(); // 确保有数据用于分类计算（有缓存的话很快）
-            let filtered = clients.filter(c => !c.deleted && !c.inPublicPool); // 公海客户默认从主列表隐藏
-            if (searchKeyword) {
-                let kw = searchKeyword.toLowerCase();
-                filtered = filtered.filter(c => {
-                    let contacts = normalizeContacts(c);
-                    let contactMatch = contacts.some(p => (p.name||'').toLowerCase().includes(kw) || (p.email||'').toLowerCase().includes(kw));
-                    return contactMatch || (c.company && c.company.toLowerCase().includes(kw)) || (c.industry && c.industry.toLowerCase().includes(kw));
-                });
-            }
-            let today = getToday();
-
-            // 先计算好每个客户的分类和提醒状态，用于筛选和统计
-            let enriched = filtered.map(c => {
-                let cls = computeClassification(c);
-                let remind = needsFollowUpReminder(c, cls, today);
-                let poolSuggest = suggestPublicPool(c, cls);
-                let staleLead = needsLeadFollowUp(c, cls, today);
-                return { c, cls, remind, poolSuggest, staleLead };
-            });
-
-            if (classFilterValue) {
-                enriched = enriched.filter(x => x.cls.label === classFilterValue);
-            }
-
-            // 特殊筛选（点"高意向"/"今日待跟进"/"老客户需跟进"/"潜在客户太久未联系"卡片触发）只影响下面表格实际显示的行，
-            // 不影响上面统计数字本身——这样点了筛选之后，数字不会跟着变得让人confused
-            let displayList = enriched;
-            if (specialFilterValue === 'hotLeads') {
-                displayList = enriched.filter(x => x.c.intention.includes('高'));
-            } else if (specialFilterValue === 'dueToday') {
-                displayList = enriched.filter(x => x.c.nextFollowDate === today);
-            } else if (specialFilterValue === 'lapsedReturning') {
-                displayList = enriched.filter(x => x.remind);
-            } else if (specialFilterValue === 'staleLead') {
-                displayList = enriched.filter(x => x.staleLead);
-            }
-
-            // 按意向→客户等级排序：高意向优先，同意向内再按钻石>金牌>银牌>基础排
-            const INTENTION_RANK = { '高意向🔥': 0, '中意向⭐': 1, '低意向🍃': 2 };
-            const LEVEL_RANK = { '钻石⭐': 0, '金牌🥇': 1, '银牌🥈': 2, '基础⚪': 3 };
-            displayList = displayList.slice().sort((a, b) => {
-                let ia = INTENTION_RANK[a.c.intention] ?? 99;
-                let ib = INTENTION_RANK[b.c.intention] ?? 99;
-                if (ia !== ib) return ia - ib;
-                let la = LEVEL_RANK[a.c.clientLevel] ?? 99;
-                let lb = LEVEL_RANK[b.c.clientLevel] ?? 99;
-                return la - lb;
-            });
-
-            let html = "";
-            displayList.forEach(({c, cls, remind, poolSuggest, staleLead}) => {
-                let intentClass = c.intention.includes("高") ? "intent-high" : "intent-mid";
-                let levelClass = c.clientLevel.includes("金") ? "level-gold" : "";
-                let clsBadge = `<span class="badge ${classBadgeClass(cls.label)} ${cls.manual ? 'cls-manual' : ''}">${cls.label}${cls.manual ? ' (手动)' : ''}</span>`;
-                let remindBadge = remind ? `<span class="badge remind-badge">⚠️ 需跟进</span>` : '';
-                let staleBadge = staleLead ? `<span class="stale-lead-badge">⏰ 太久没联系</span>` : '';
-                let poolBadge = poolSuggest ? `<span class="pool-badge" onclick="movetoPublicPool('${c.id}')" title="点击移入公海">🌊 建议移入公海</span>` : '';
-                let followHistory = Array.isArray(c.followHistory) ? c.followHistory : [];
-                let lastFollow = followHistory.length ? followHistory[followHistory.length - 1] : null;
-                let contacts = normalizeContacts(c);
-                let primaryContact = contacts.length ? contacts[0] : { name: '（未填联系人）' };
-                let moreContactsNote = contacts.length > 1 ? `<br><small style="color:#54738f;">+${contacts.length - 1} 位其他联系人</small>` : '';
-                html += `<tr>
-                    <td class="checkbox-col"><input type="checkbox" class="client-checkbox" value="${c.id}"></td>
-                    <td><strong>${escapeHtml(primaryContact.name)}</strong>${moreContactsNote}<br><small>${escapeHtml(c.company) || '—'} | ${escapeHtml(c.country)}</small></td>
-                    <td>${clsBadge}${remindBadge ? '<br>' + remindBadge : ''}${staleBadge ? '<br>' + staleBadge : ''}${poolBadge ? '<br>' + poolBadge : ''}</td>
-                    <td>${escapeHtml(c.industry) || '—'}<br><small>${escapeHtml(c.productLine) || ''}</small></td>
-                    <td><span class="badge ${levelClass}">${escapeHtml(c.clientLevel)}</span> <span class="badge ${intentClass}">${escapeHtml(c.intention)}</span></td>
-                    <td><span class="badge source-badge">${escapeHtml(c.source) || '展会'}</span></td>
-                    <td>${lastFollow ? formatDate(lastFollow.date) : '—'}<br><small>${lastFollow ? escapeHtml((lastFollow.note||'').substring(0,20)) : ''}</small></td>
-                    <td>${c.nextFollowDate || '—'}${c.nextFollowDate === today ? ' 🔔' : (c.nextFollowDate && c.nextFollowDate < today ? ' ⚠️' : '')}</td>
-                    <td class="action-icons"><i class="fas fa-eye" onclick="viewClient('${c.id}')" title="查看客户信息"></i><i class="fas fa-edit" onclick="editClient('${c.id}')"></i><i class="fas fa-clock" onclick="quickFollow('${c.id}')"></i><i class="fas fa-file-invoice-dollar" onclick="viewQuoteHistory('${c.id}')" title="查看报价记录"></i><i class="fas fa-trash-alt" onclick="deleteClient('${c.id}')"></i></td>
-                </tr>`;
-            });
-            let emptyMsg = specialFilterValue ? '没有符合当前筛选条件的客户' : '暂无客户';
-            document.getElementById("tableBody").innerHTML = html || `<tr><td colspan="9" style="text-align:center;">${emptyMsg}</td></tr>`;
-            document.getElementById("totalClients").innerText = filtered.length;
-            document.getElementById("hotLeads").innerText = filtered.filter(c => c.intention.includes("高")).length;
-            document.getElementById("dueTodayCount").innerText = filtered.filter(c => c.nextFollowDate === today).length;
-            document.getElementById("lapsedCount").innerText = enriched.filter(x => x.remind).length;
-            document.getElementById("staleLeadCount").innerText = enriched.filter(x => x.staleLead).length;
-            updateSpecialFilterBanner(displayList.length);
-        }
-
-        // 点统计卡片切换筛选：再点一次同一个会取消筛选，点另一个会切换筛选条件
-        function toggleSpecialFilter(type) {
-            specialFilterValue = (specialFilterValue === type) ? '' : type;
-            render();
-        }
-        function clearSpecialFilter() {
-            specialFilterValue = '';
-            render();
-        }
-        function updateSpecialFilterBanner(count) {
-            let banner = document.getElementById('specialFilterBanner');
-            let text = document.getElementById('specialFilterText');
-            document.getElementById('hotLeadsStat').style.outline = specialFilterValue === 'hotLeads' ? '2px solid #ac3f3f' : 'none';
-            document.getElementById('dueTodayStat').style.outline = specialFilterValue === 'dueToday' ? '2px solid #0e4b6e' : 'none';
-            document.getElementById('lapsedStat').style.outline = specialFilterValue === 'lapsedReturning' ? '2px solid #ac3f3f' : 'none';
-            document.getElementById('staleLeadStat').style.outline = specialFilterValue === 'staleLead' ? '2px solid #1f5fa8' : 'none';
-            if (!specialFilterValue) {
-                banner.style.display = 'none';
-                return;
-            }
-            let labelMap = { hotLeads: '高意向', dueToday: '今日待跟进', lapsedReturning: '老客户需跟进', staleLead: '潜在客户太久未联系' };
-            text.innerText = `正在筛选：${labelMap[specialFilterValue]}（共 ${count} 个客户）`;
-            banner.style.display = 'block';
-        }
-
-        function formatDate(d) { return d ? new Date(d).toLocaleDateString('zh-CN') : '—'; }
-
-        // ========== 联系人（一家公司支持多个联系人）==========
-        function addContactRow(contact) {
-            contact = contact || { name: '', title: '', email: '', phone: '' };
-            let tbody = document.getElementById('contactsTableBody');
-            let tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td style="padding:4px;"><input type="text" class="contact-name" value="${escapeHtml(contact.name)}" style="width:100%;padding:6px 8px;border:1px solid #c4d6e8;border-radius:8px;font-size:0.85rem;"></td>
-                <td style="padding:4px;"><input type="text" class="contact-title" value="${escapeHtml(contact.title)}" style="width:100%;padding:6px 8px;border:1px solid #c4d6e8;border-radius:8px;font-size:0.85rem;"></td>
-                <td style="padding:4px;"><input type="email" class="contact-email" value="${escapeHtml(contact.email)}" style="width:100%;padding:6px 8px;border:1px solid #c4d6e8;border-radius:8px;font-size:0.85rem;"></td>
-                <td style="padding:4px;"><input type="text" class="contact-phone" value="${escapeHtml(contact.phone)}" style="width:100%;padding:6px 8px;border:1px solid #c4d6e8;border-radius:8px;font-size:0.85rem;"></td>
-                <td style="padding:4px;text-align:center;"><i class="fas fa-times-circle" style="color:#ac3f3f;cursor:pointer;" onclick="this.closest('tr').remove()"></i></td>
-            `;
-            tbody.appendChild(tr);
-        }
-        function getContactsFromForm() {
-            let rows = document.querySelectorAll('#contactsTableBody tr');
-            let contacts = [];
-            rows.forEach(r => {
-                let name = r.querySelector('.contact-name').value.trim();
-                let title = r.querySelector('.contact-title').value.trim();
-                let email = r.querySelector('.contact-email').value.trim();
-                let phone = r.querySelector('.contact-phone').value.trim();
-                if (name || email || phone) contacts.push({ name, title, email, phone });
-            });
-            return contacts;
-        }
-        // 兼容旧数据：老记录只有单独的 name/email/phone 字段，没有 contacts 数组时，自动转换一次
-        function normalizeContacts(c) {
-            if (Array.isArray(c.contacts) && c.contacts.length) return c.contacts;
-            if (c.name || c.email || c.phone) {
-                return [{ name: c.name || '', title: '', email: c.email || '', phone: c.phone || '' }];
-            }
-            return [];
-        }
-
-        // ========== 年度新客户统计：只统计"CRM已建档 + 关联了下单系统客户 + 确实有订单"的客户，
-        //           按其首笔订单年份（即潜在客户→样品客户的转化时间点）分组计数。
-        //           不在CRM建档、或没关联下单系统客户的，不计入——哪怕订单系统里有他们的订单。==========
-        function computeNewCustomersByYear(crmClients, orders) {
-            let yearCounts = {};
-            crmClients.filter(c => !c.deleted && c.linkedCustomerCompany).forEach(c => {
-                let matching = orders.filter(o => !o.deleted && o.customerCompany === c.linkedCustomerCompany);
-                if (matching.length === 0) return; // 还没有订单，仍是潜在客户，不计入
-                let firstOrderDate = matching.reduce((min, o) => {
-                    let d = o.orderDate || '';
-                    return (!min || (d && d < min)) ? d : min;
-                }, '');
-                let year = (firstOrderDate || '').slice(0, 4);
-                if (!year) return;
-                yearCounts[year] = (yearCounts[year] || 0) + 1;
-            });
-            return yearCounts;
-        }
-
-        async function openYearStatsModal() {
-            let data = await fetchCustomerOrderData();
-            let yearCounts = computeNewCustomersByYear(clients, data.orders);
-            let years = Object.keys(yearCounts).sort().reverse();
-            let box = document.getElementById('yearStatsBody');
-            if (years.length === 0) {
-                box.innerHTML = '<div style="color:#94a3b8;">暂无数据——需要CRM客户"关联下单系统客户"，且该客户在下单系统里确实有订单，才会被统计</div>';
-            } else {
-                box.innerHTML = years.map(y => `
-                    <div style="display:flex; justify-content:space-between; padding:10px 4px; border-bottom:1px solid #eef4f9;">
-                        <span>${y} 年</span>
-                        <span style="font-weight:700; color:#0e4b6e;">${yearCounts[y]} 个新客户</span>
-                    </div>
-                `).join('');
-            }
-            document.getElementById('yearStatsModal').style.display = 'flex';
-        }
-
-        function renderPublicPoolList() {
-            let pooled = clients.filter(c => !c.deleted && c.inPublicPool);
-            pooled.sort((a, b) => (b.publicPoolAt || '').localeCompare(a.publicPoolAt || ''));
-            let box = document.getElementById('publicPoolBody');
-            if (pooled.length === 0) {
-                box.innerHTML = '<div style="color:#94a3b8;">公海目前是空的</div>';
-                return;
-            }
-            box.innerHTML = pooled.map(c => {
-                let contacts = normalizeContacts(c);
-                let primaryName = contacts.length ? contacts[0].name : '（未填联系人）';
-                let followCount = Array.isArray(c.followHistory) ? c.followHistory.length : 0;
-                return `<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 4px; border-bottom:1px solid #eef4f9;">
-                    <div><b>${escapeHtml(c.company)}</b><br><small style="color:#94a3b8;">${escapeHtml(primaryName)} ｜ 跟进${followCount}次 ｜ 移入日期：${formatDate(c.publicPoolAt)}</small></div>
-                    <button class="btn-secondary" style="padding:0.4rem 1rem; font-size:0.8rem;" onclick="reactivateFromPublicPool('${c.id}')">移回主列表</button>
-                </div>`;
-            }).join('');
-        }
-
-        async function openPublicPoolModal() {
-            renderPublicPoolList();
-            document.getElementById('publicPoolModal').style.display = 'flex';
-        }
-
-        // ========== 表单 ==========
-        async function resetForm() {
-            document.getElementById("company").value = "";
-            await populateLinkedCustomerSelect();
-            document.getElementById("linkedCustomerSelect").value = "";
-            document.getElementById("country").value = "China";
-            document.getElementById("industry").value = "";
-            document.getElementById("productLine").value = "";
-            document.getElementById("scale").value = "11-50人";
-            document.getElementById("clientLevel").value = "基础⚪";
-            document.getElementById("intention").value = "中意向⭐";
-            document.getElementById("source").value = "展会";
-            document.getElementById("classOverride").value = "";
-            document.getElementById("followUpCycleDays").value = "";
-            document.getElementById("nextFollowDate").value = "";
-            document.getElementById("nextAction").value = "";
-            document.getElementById("website").value = "";
-            document.getElementById("linkedin").value = "";
-            document.getElementById("facebook").value = "";
-            document.getElementById("followNote").value = "";
-            document.getElementById("followHistoryBox").innerHTML = "";
-            document.getElementById("contactsTableBody").innerHTML = "";
-            addContactRow();
-            editId = null;
-            document.getElementById("editId").value = "";
-            document.getElementById("formTitleText").innerText = "新增外贸客户";
-            document.getElementById("formPanel").style.display = "none";
-        }
-
-        function renderFollowHistory(followHistory) {
-            let box = document.getElementById("followHistoryBox");
-            if (!followHistory || !followHistory.length) {
-                box.innerHTML = '<div class="form-group"><label>历史跟进记录</label><div style="color:#94a3b8;font-size:0.85rem;">暂无历史记录</div></div>';
-                return;
-            }
-            let items = followHistory.slice().reverse().map(f => `
-                <div style="padding:8px 12px;border-bottom:1px solid #eef4f9;font-size:0.85rem;">
-                    <b>${formatDate(f.date)}</b>　${escapeHtml(f.note || '')}
-                </div>
-            `).join('');
-            box.innerHTML = `<div class="form-group"><label>历史跟进记录（共${followHistory.length}条，最新在上）</label><div style="max-height:180px;overflow-y:auto;border:1px solid #e3eff8;border-radius:12px;">${items}</div></div>`;
-        }
-
-        async function saveClient() {
-            let company = document.getElementById("company").value.trim();
-            if (!company) { alert("公司不能为空"); return; }
-            let contacts = getContactsFromForm();
-
-            let existing = editId ? clients.find(c => c.id === editId) : null;
-            let followHistory = existing && Array.isArray(existing.followHistory) ? existing.followHistory.slice() : [];
-            let newNote = document.getElementById("followNote").value.trim();
-            if (newNote) {
-                followHistory.push({ date: getToday(), note: newNote });
-            }
-
-            let client = {
-                id: editId || genId(),
-                company: company,
-                contacts: contacts,
-                linkedCustomerCompany: document.getElementById("linkedCustomerSelect").value,
-                country: document.getElementById("country").value.trim(),
-                industry: document.getElementById("industry").value.trim(),
-                productLine: document.getElementById("productLine").value.trim(),
-                scale: document.getElementById("scale").value,
-                clientLevel: document.getElementById("clientLevel").value,
-                intention: document.getElementById("intention").value,
-                source: document.getElementById("source").value,
-                classOverride: document.getElementById("classOverride").value,
-                followUpCycleDays: document.getElementById("followUpCycleDays").value,
-                nextFollowDate: document.getElementById("nextFollowDate").value,
-                nextAction: document.getElementById("nextAction").value.trim(),
-                website: document.getElementById("website").value.trim(),
-                linkedin: document.getElementById("linkedin").value.trim(),
-                facebook: document.getElementById("facebook").value.trim(),
-                followHistory: followHistory,
-                deleted: existing ? existing.deleted : false,
-                deletedAt: existing ? existing.deletedAt : null
-            };
-            if (editId) {
-                let idx = clients.findIndex(c => c.id === editId);
-                if (idx !== -1) clients[idx] = client;
-            } else {
-                clients.push(client);
-            }
-            saveLocal();
-            await saveToCloud();
-            await render();
-            resetForm();
-            showToast("已保存并同步云端");
-        }
-
-        // 只读查看客户信息，不用进编辑模式就能看全部资料
-        window.viewClient = function(id) {
-            let c = clients.find(c => c.id === id);
-            if (!c) return;
-            let cls = computeClassification(c);
-            let contacts = normalizeContacts(c);
-            let contactsHtml = contacts.length
-                ? contacts.map(p => `<div style="padding:6px 0; border-bottom:1px solid #eef4f9;"><b>${escapeHtml(p.name)}</b>${p.title ? ' · ' + escapeHtml(p.title) : ''}<br><small style="color:#5d7f9a;">${escapeHtml(p.email) || '—'} ｜ ${escapeHtml(p.phone) || '—'}</small></div>`).join('')
-                : '<div style="color:#94a3b8;">暂无联系人</div>';
-            let followHistory = Array.isArray(c.followHistory) ? c.followHistory : [];
-            let followHtml = followHistory.length
-                ? followHistory.slice().reverse().slice(0, 5).map(f => `<div style="padding:6px 0; border-bottom:1px solid #eef4f9; font-size:0.85rem;"><b>${formatDate(f.date)}</b>　${escapeHtml(f.note || '')}</div>`).join('')
-                : '<div style="color:#94a3b8;font-size:0.85rem;">暂无跟进记录</div>';
-            let socialLinks = [];
-            if (c.website) socialLinks.push(`<a href="${escapeHtml(c.website)}" target="_blank" style="color:#0e4b6e;"><i class="fas fa-globe"></i> 官网</a>`);
-            if (c.linkedin) socialLinks.push(`<a href="${escapeHtml(c.linkedin)}" target="_blank" style="color:#0e4b6e;"><i class="fab fa-linkedin"></i> LinkedIn</a>`);
-            if (c.facebook) socialLinks.push(`<a href="${escapeHtml(c.facebook)}" target="_blank" style="color:#0e4b6e;"><i class="fab fa-facebook"></i> Facebook</a>`);
-            let socialHtml = socialLinks.length ? `<div style="margin-top:0.6rem; display:flex; gap:1rem; font-size:0.85rem;">${socialLinks.join('')}</div>` : '';
-
-            document.getElementById('viewClientBody').innerHTML = `
-                <h3 style="color:#0e4b6e; margin-bottom:0.3rem;">${escapeHtml(c.company)}</h3>
-                <div style="margin-bottom:0.8rem;">
-                    <span class="badge ${classBadgeClass(cls.label)}">${cls.label}${cls.manual ? ' (手动)' : ''}</span>
-                    <span class="badge ${c.clientLevel && c.clientLevel.includes('金') ? 'level-gold' : ''}">${escapeHtml(c.clientLevel || '')}</span>
-                    <span class="badge ${c.intention && c.intention.includes('高') ? 'intent-high' : 'intent-mid'}">${escapeHtml(c.intention || '')}</span>
-                </div>
-                ${socialHtml}
-                <div style="margin-top:1rem; font-size:0.85rem; line-height:1.9;">
-                    <div><b>国家：</b>${escapeHtml(c.country) || '—'}</div>
-                    <div><b>行业：</b>${escapeHtml(c.industry) || '—'}</div>
-                    <div><b>产品线：</b>${escapeHtml(c.productLine) || '—'}</div>
-                    <div><b>规模：</b>${escapeHtml(c.scale) || '—'}</div>
-                    <div><b>来源：</b>${escapeHtml(c.source) || '—'}</div>
-                    <div><b>下次跟进：</b>${c.nextFollowDate || '—'}${c.nextAction ? '（' + escapeHtml(c.nextAction) + '）' : ''}</div>
-                </div>
-                <div style="margin-top:1rem;"><b style="font-size:0.85rem;">联系人</b><div style="margin-top:0.4rem;">${contactsHtml}</div></div>
-                <div style="margin-top:1rem;"><b style="font-size:0.85rem;">最近跟进记录</b><div style="margin-top:0.4rem;">${followHtml}</div></div>
-            `;
-            document.getElementById('viewClientEditBtn').onclick = () => {
-                document.getElementById('viewClientModal').style.display = 'none';
-                editClient(id);
-            };
-            document.getElementById('viewClientModal').style.display = 'flex';
-        };
-
-        window.editClient = async function(id) {
-            let c = clients.find(c => c.id === id);
-            if (!c) return;
-            await populateLinkedCustomerSelect();
-            document.getElementById("company").value = c.company || "";
-            document.getElementById("linkedCustomerSelect").value = c.linkedCustomerCompany || "";
-            document.getElementById("country").value = c.country || "China";
-            document.getElementById("industry").value = c.industry || "";
-            document.getElementById("productLine").value = c.productLine || "";
-            document.getElementById("scale").value = c.scale || "11-50人";
-            document.getElementById("clientLevel").value = c.clientLevel;
-            document.getElementById("intention").value = c.intention;
-            document.getElementById("source").value = c.source || "展会";
-            document.getElementById("classOverride").value = c.classOverride || "";
-            document.getElementById("followUpCycleDays").value = c.followUpCycleDays || "";
-            document.getElementById("nextFollowDate").value = c.nextFollowDate || "";
-            document.getElementById("nextAction").value = c.nextAction || "";
-            document.getElementById("website").value = c.website || "";
-            document.getElementById("linkedin").value = c.linkedin || "";
-            document.getElementById("facebook").value = c.facebook || "";
-            document.getElementById("followNote").value = "";
-            document.getElementById("contactsTableBody").innerHTML = "";
-            let contacts = normalizeContacts(c);
-            if (contacts.length === 0) contacts = [{ name: '', title: '', email: '', phone: '' }];
-            contacts.forEach(ct => addContactRow(ct));
-            renderFollowHistory(c.followHistory);
-            editId = c.id;
-            document.getElementById("editId").value = c.id;
-            document.getElementById("formTitleText").innerText = "编辑客户";
-            document.getElementById("formPanel").style.display = "block";
-            window.scrollTo({ top: document.getElementById("formPanel").offsetTop - 20, behavior: 'smooth' });
-        };
-
-        // 删除改为软删除（打标记，不真的抹掉），避免误删无法找回
-        window.deleteClient = async function(id) {
-            if (confirm("确定删除？（删除后数据仍保留，可联系恢复，不会真的从云端抹掉）")) {
-                let idx = clients.findIndex(c => c.id === id);
-                if (idx !== -1) { clients[idx].deleted = true; clients[idx].deletedAt = getToday(); }
-                saveLocal();
-                await saveToCloud();
-                await render();
-                showToast("已删除");
-            }
-        };
-
-        window.quickFollow = async function(id) {
-            let c = clients.find(c => c.id === id);
-            if (!c) return;
-            let note = prompt("这次跟进聊了什么（会追加到历史记录，不会覆盖之前的）:");
-            if (note === null || !note.trim()) return;
-            if (!Array.isArray(c.followHistory)) c.followHistory = [];
-            c.followHistory.push({ date: getToday(), note: note.trim() });
-            let newDate = prompt("下次跟进日期（可留空不改）:", c.nextFollowDate || "");
-            if (newDate !== null && newDate.trim()) c.nextFollowDate = newDate.trim();
-            saveLocal();
-            await saveToCloud();
-            await render();
-            showToast("已更新跟进记录");
-        };
-
-        // ========== Excel导出/导入 ==========
-        function exportExcel() {
-            let visible = clients.filter(c => !c.deleted);
-            if (!visible.length) { alert("无数据"); return; }
-            let headers = ["公司","联系人（多个用；分隔）","国家","行业","产品线","规模","等级","意向","来源","分类","邮箱（多个用；分隔）","电话（多个用；分隔）","下次跟进","下一步动作","最新跟进记录"];
-            let data = visible.map(c => {
-                let cls = computeClassification(c);
-                let lastFollow = Array.isArray(c.followHistory) && c.followHistory.length ? c.followHistory[c.followHistory.length - 1] : null;
-                let contacts = normalizeContacts(c);
-                let names = contacts.map(p => p.name).filter(Boolean).join('；');
-                let emails = contacts.map(p => p.email).filter(Boolean).join('；');
-                let phones = contacts.map(p => p.phone).filter(Boolean).join('；');
-                return [c.company, names, c.country, c.industry, c.productLine, c.scale, c.clientLevel, c.intention, c.source, cls.label, emails, phones, c.nextFollowDate, c.nextAction, lastFollow ? `${lastFollow.date} ${lastFollow.note}` : ''];
-            });
-            let ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
-            let wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "客户");
-            XLSX.writeFile(wb, `客户_${getToday()}.xlsx`);
-        }
-
-        function importExcel(file) {
-            let reader = new FileReader();
-            reader.onload = async function(e) {
-                let wb = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
-                let ws = wb.Sheets[wb.SheetNames[0]];
-                let rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
-                if (rows.length < 2) { alert("无数据"); return; }
-                let imported = [];
-                for (let i = 1; i < rows.length; i++) {
-                    let r = rows[i];
-                    if (r[0]) {
-                        // 支持"姓名；分号"格式的多联系人，跟邮箱/电话按位置对应；对不上就只填第一个联系人的邮箱电话
-                        let names = r[1] ? String(r[1]).split(/[；;]/).map(s => s.trim()).filter(Boolean) : [];
-                        let emails = r[10] ? String(r[10]).split(/[；;]/).map(s => s.trim()).filter(Boolean) : [];
-                        let phones = r[11] ? String(r[11]).split(/[；;]/).map(s => s.trim()).filter(Boolean) : [];
-                        let contacts = names.length ? names.map((n, idx) => ({ name: n, title: '', email: emails[idx] || '', phone: phones[idx] || '' })) : [];
-                        imported.push({
-                            id: genId(),
-                            company: String(r[0]).trim(),
-                            contacts: contacts,
-                            linkedCustomerCompany: "",
-                            country: r[2] ? String(r[2]).trim() : "",
-                            industry: r[3] ? String(r[3]).trim() : "",
-                            productLine: r[4] ? String(r[4]).trim() : "",
-                            scale: r[5] ? String(r[5]).trim() : "11-50人",
-                            clientLevel: r[6] ? String(r[6]).trim() : "基础⚪",
-                            intention: r[7] ? String(r[7]).trim() : "中意向⭐",
-                            source: r[8] ? String(r[8]).trim() : "展会",
-                            classOverride: "",
-                            followUpCycleDays: "",
-                            nextFollowDate: r[12] ? String(r[12]).trim() : "",
-                            nextAction: r[13] ? String(r[13]).trim() : "",
-                            followHistory: r[14] ? [{ date: getToday(), note: String(r[14]).trim() }] : [],
-                            deleted: false, deletedAt: null
-                        });
-                    }
-                }
-                if (confirm(`导入 ${imported.length} 条，确定替换现有客户？取消则追加`)) clients = imported;
-                else clients = [...clients, ...imported];
-                saveLocal();
-                await saveToCloud();
-                await render();
-                showToast("导入成功");
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        // ========== 初始化 ==========
-        async function initCRM() {
-            await loadFromCloud();
-            await populateLinkedCustomerSelect();
-            document.getElementById("searchBtn").onclick = () => { searchKeyword = document.getElementById("searchInput").value; render(); };
-            document.getElementById("clearSearchBtn").onclick = () => { document.getElementById("searchInput").value = ""; searchKeyword = ""; document.getElementById("classFilter").value = ""; classFilterValue = ""; specialFilterValue = ""; render(); };
-            document.getElementById("classFilter").onchange = (e) => { classFilterValue = e.target.value; render(); };
-            document.getElementById("showAddFormBtn").onclick = async () => { await resetForm(); document.getElementById("formPanel").style.display = "block"; };
-            document.getElementById("cancelFormBtn").onclick = resetForm;
-            document.getElementById("saveClientBtn").onclick = saveClient;
-            document.getElementById("exportAllBtn").onclick = exportExcel;
-            document.getElementById("importBtn").onclick = () => document.getElementById("importFile").click();
-            document.getElementById("importFile").onchange = (e) => { if(e.target.files[0]) importExcel(e.target.files[0]); e.target.value = ""; };
-            document.getElementById("backupBtn").onclick = backupAllData;
-            document.getElementById("importBackupBtn").onclick = () => document.getElementById("importBackupFile").click();
-            document.getElementById("importBackupFile").onchange = importBackupData;
-            document.getElementById("yearStatsBtn").onclick = openYearStatsModal;
-            document.getElementById("publicPoolBtn").onclick = openPublicPoolModal;
-            document.getElementById("selectAllCheckbox").onclick = (e) => document.querySelectorAll(".client-checkbox").forEach(cb => cb.checked = e.target.checked);
-        }
-
-        document.getElementById("unlockBtn").onclick = unlock;
-        document.getElementById("passwordInput").addEventListener("keypress", e => {
-            if (e.key === "Enter") {
-                if (document.getElementById("unlockBtn").disabled) {
-                    document.getElementById("lockError").innerText = "⏳ 云端密码校验中，请稍等几秒再试";
-                    return;
-                }
-                unlock();
-            }
+// ============================================================
+// SZSUNLIT 系统 jsonbin 中转代理
+// 作用：把真实的 jsonbin Master Key 藏在这里（存成环境变量，代码里不出现），
+//      前端网页只调用这个中转站的网址，看不到真实Key
+// ============================================================
+
+const FINANCE_BIN_ID = '6aaf8acbffd5d160531b6669'; // 财务系统的Bin，读写这个Bin除了通行证还要额外验一道专属密码（存在FINANCE_ACCESS_PASSWORD环境变量），
+                                                     // 防的是"看网页源代码拿到通行证就能直接读写数据"这个问题——财务数据比其他业务数据更敏感，多这一道门槛
+
+export default {
+  async fetch(request, env) {
+    // CORS：允许浏览器跨域调用这个中转站
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, X-Access-Token, X-Finance-Password',
+    };
+
+    // 浏览器发起真正请求前，会先发一个OPTIONS"预检"请求，直接放行
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { headers: corsHeaders });
+    }
+
+    // ===== 通行证校验：分两级——
+    //   ACCESS_TOKEN     完整权限，你自己的5个系统用，能读写任何数据
+    //   GPT_READ_TOKEN   只读权限，专门给ChatGPT用，只能访问 /gpt/ 开头的只读摘要接口，
+    //                    就算拿这个token去调用修改/删除/原始数据读写接口，也会被直接拒绝，
+    //                    这样即使这个token哪天意外泄露，最多只能"看"CRM摘要，碰不到任何真实数据的增删改 =====
+    const ACCESS_TOKEN = env.ACCESS_TOKEN;
+    const GPT_READ_TOKEN = env.GPT_READ_TOKEN;
+    const providedToken = request.headers.get('X-Access-Token');
+    if (!ACCESS_TOKEN) {
+      return new Response(JSON.stringify({ error: '中转站还没配置通行证，请在Cloudflare后台设置 ACCESS_TOKEN' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const url = new URL(request.url);
+    const isFullAccess = providedToken === ACCESS_TOKEN;
+    const isGptReadOnly = !!GPT_READ_TOKEN && providedToken === GPT_READ_TOKEN;
+
+    if (!isFullAccess && !isGptReadOnly) {
+      return new Response(JSON.stringify({ error: '未授权：通行证不对' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    // 只读token只能碰 /gpt/ 开头的接口，其他一律拒绝——这是给ChatGPT用的token的硬性边界
+    if (isGptReadOnly && !url.pathname.startsWith('/gpt/')) {
+      return new Response(JSON.stringify({ error: '这个通行证只能访问只读摘要接口(/gpt/开头)，没有权限访问其他接口' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const MASTER_KEY = env.JSONBIN_MASTER_KEY; // 真实Key存在Cloudflare后台，这里只是读取，代码里看不到明文
+
+    if (!MASTER_KEY) {
+      return new Response(JSON.stringify({ error: '中转站还没配置密钥，请在Cloudflare后台设置 JSONBIN_MASTER_KEY' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+
+    // ===== AI询价助手专用路由：前端只认统一的 {systemPrompt, userMessage} 请求 / {text} 返回，
+    //      具体接哪家AI服务商、怎么翻译成对方的API格式，全部封装在这里。
+    //      以后要换供应商，只需要改 AI_PROVIDER 这个环境变量 + 换对应的API Key，前端代码完全不用动。 =====
+    if (url.pathname === '/ai/parse-rfq') {
+      if (request.method !== 'POST') {
+        return new Response(JSON.stringify({ error: '这个接口只支持POST' }), {
+          status: 405,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
-        document.getElementById("changePwdBtn").onclick = changePwd;
+      }
+      try {
+        let requestData;
+        try {
+          requestData = await request.json(); // { systemPrompt, userMessage }
+        } catch (e) {
+          return new Response(JSON.stringify({ error: '请求体不是合法的JSON' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        if (!requestData || typeof requestData.systemPrompt !== 'string' || typeof requestData.userMessage !== 'string') {
+          return new Response(JSON.stringify({ error: '请求体缺少 systemPrompt 或 userMessage 字段' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
 
-        // 页面一加载就去云端校验密码，校验完成前解锁按钮保持禁用，避免用过期本地密码误判
-        // 加了8秒超时兜底：万一网络慢或请求卡住，也不会让按钮永远转圈
-        (async function preloadPassword() {
-            try {
-                let timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('云端校验超时')), 8000));
-                let res = await Promise.race([
-                    fetch(`${WORKER_URL}/bin/${BIN_ID}/latest`, { headers: { 'X-Access-Token': ACCESS_TOKEN } }),
-                    timeoutPromise
-                ]);
-                if (res.ok) {
-                    let json = await res.json();
-                    let r = json.record;
-                    if (r && typeof r === 'object' && r.password) {
-                        currentPwd = r.password;
-                        localStorage.setItem("crm_password", currentPwd);
-                    }
-                }
-            } catch(e) { console.log('预加载密码失败，使用本地缓存密码', e); }
-            let btn = document.getElementById('unlockBtn');
-            btn.disabled = false;
-            btn.innerText = '进入系统';
-        })();
-    </script>
-</body>
-</html>
+        const provider = (env.AI_PROVIDER || 'deepseek').trim().toLowerCase();
+        let resultText;
+
+        if (provider === 'deepseek') {
+          resultText = await callDeepSeek(requestData, env);
+        } else if (provider === 'zhipu') {
+          resultText = await callZhipu(requestData, env);
+        } else if (provider === 'qwen') {
+          resultText = await callQwen(requestData, env);
+        } else {
+          throw new Error(`不认识的 AI_PROVIDER 设置："${provider}"，目前支持 deepseek / zhipu / qwen`);
+        }
+
+        return new Response(JSON.stringify({ text: resultText }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (e) {
+        // AI这条路由本身出任何问题，都只影响这一次AI解析请求，跟jsonbin数据读写完全是两码事，互不影响
+        const isTimeout = e.name === 'AbortError';
+        return new Response(JSON.stringify({ error: isTimeout ? 'AI服务响应超时，请稍后重试' : ('AI请求失败：' + e.message) }), {
+          status: isTimeout ? 504 : 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // ===== 给ChatGPT Custom GPT用的CRM摘要只读接口 =====
+    // 只读，不接受任何写操作；返回的是整理好的几份提醒名单，不是CRM原始数据，
+    // 判定逻辑（潜在/样品/老客户怎么分、多久算需要跟进）跟CRM网页里的逻辑保持一致。
+    if (url.pathname === '/gpt/crm-digest') {
+      if (request.method !== 'GET') {
+        return new Response(JSON.stringify({ error: '这个接口只支持GET' }), {
+          status: 405,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      try {
+        const digest = await buildCrmDigest(MASTER_KEY);
+        return new Response(JSON.stringify(digest), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: '生成CRM摘要失败：' + e.message }), {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // ===== 单客户详情：需要深入了解某一个客户时用 =====
+    const customerDetailMatch = url.pathname.match(/^\/gpt\/customer\/([^\/]+)$/);
+    if (customerDetailMatch) {
+      if (request.method !== 'GET') {
+        return new Response(JSON.stringify({ error: '这个接口只支持GET' }), {
+          status: 405,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      try {
+        const companyName = decodeURIComponent(customerDetailMatch[1]);
+        const detail = await buildCustomerDetail(MASTER_KEY, companyName);
+        if (!detail) {
+          return new Response(JSON.stringify({ error: `没有找到公司名叫"${companyName}"的客户` }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        return new Response(JSON.stringify(detail), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: '读取客户详情失败：' + e.message }), {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // ===== 单客户完整时间线：跟进记录 + 报价记录 + 订单记录，按时间合并排序 =====
+    const customerTimelineMatch = url.pathname.match(/^\/gpt\/customer\/([^\/]+)\/timeline$/);
+    if (customerTimelineMatch) {
+      if (request.method !== 'GET') {
+        return new Response(JSON.stringify({ error: '这个接口只支持GET' }), {
+          status: 405,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      try {
+        const companyName = decodeURIComponent(customerTimelineMatch[1]);
+        const timeline = await buildCustomerTimeline(MASTER_KEY, companyName);
+        return new Response(JSON.stringify(timeline), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: '读取客户时间线失败：' + e.message }), {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // 期望的访问路径格式： /bin/{binId}/latest  （拉取数据，GET）
+    //                    /bin/{binId}         （写入数据，PUT）
+    const match = url.pathname.match(/^\/bin\/([a-zA-Z0-9]+)(\/latest)?$/);
+    if (!match) {
+      return new Response(JSON.stringify({ error: '请求路径不对，应该是 /bin/{binId} 或 /bin/{binId}/latest' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const binId = match[1];
+    const isLatest = !!match[2];
+
+    // ===== 财务系统这个Bin额外加一道服务端密码验证：
+    //      光有ACCESS_TOKEN（写在网页源代码里，任何人查看源代码都能拿到）不够，
+    //      还要带上跟FINANCE_ACCESS_PASSWORD一致的 X-Finance-Password 请求头才放行，
+    //      密码本身只存在这里的环境变量里，不会出现在任何前端代码中 =====
+    if (binId === FINANCE_BIN_ID) {
+      const financePassword = env.FINANCE_ACCESS_PASSWORD;
+      if (!financePassword) {
+        return new Response(JSON.stringify({ error: '财务系统还没配置服务端密码，请在Cloudflare后台设置 FINANCE_ACCESS_PASSWORD' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const providedFinancePassword = request.headers.get('X-Finance-Password');
+      if (providedFinancePassword !== financePassword) {
+        return new Response(JSON.stringify({ error: '财务系统密码不对' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    const targetUrl = `https://api.jsonbin.io/v3/b/${binId}${isLatest ? '/latest' : ''}`;
+
+    try {
+      const jsonbinRes = await fetch(targetUrl, {
+        method: request.method,
+        headers: {
+          'X-Master-Key': MASTER_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: request.method === 'PUT' ? await request.text() : undefined,
+      });
+
+      const body = await jsonbinRes.text();
+      return new Response(body, {
+        status: jsonbinRes.status,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (e) {
+      return new Response(JSON.stringify({ error: '中转请求失败：' + e.message }), {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  },
+};
+
+// ============================================================
+// AI供应商适配层：每家的请求/返回格式细节都封装在各自的函数里，
+// 对外（上面的路由逻辑）统一都是"传 systemPrompt+userMessage，拿到一段文字"。
+// 以后要加新的供应商，只需要照着这个样子再写一个 callXxx 函数，然后在上面的路由里加一个分支。
+// ============================================================
+
+const AI_TIMEOUT_MS = 45000; // 45秒超时——放宽是因为一次性解析二三十个型号比单个型号耗时明显更长，避免正常的大批量请求被误判成超时
+
+// 带超时的fetch封装，三个供应商函数共用
+async function fetchWithTimeout(url, options) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function extractOpenAiCompatibleText(data) {
+  const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+  if (typeof content !== 'string' || !content.trim()) {
+    throw new Error('AI服务返回了空内容，没有可用的解析结果');
+  }
+  return content;
+}
+
+// ============================================================
+// 给ChatGPT用的CRM摘要构建逻辑：直接读jsonbin原始数据，
+// 分类/提醒判定逻辑照抄CRM网页里的同名逻辑，保证两边结果一致。
+// ============================================================
+const CRM_BIN_ID = '69ca405a36566621a85fc22b';
+const CUSTOMER_ORDER_BIN_ID_FOR_DIGEST = '6a7e7e1bda38895dfee28007';
+const QUOTATION_BIN_ID_FOR_DIGEST = '6a82ce05da38895dfeee1354';
+const DEFAULT_FOLLOW_UP_CYCLE_DAYS = 90; // 老客户/样品客户默认多久没下单算需要提醒
+const LEAD_STALE_DAYS = 30; // 潜在客户默认多久没跟进算太久没联系
+const PUBLIC_POOL_FOLLOW_THRESHOLD = 10;
+const RECENT_QUOTE_WINDOW_DAYS = 14; // "近期活跃机会"：最近多少天内有报价算活跃
+const RECENT_ACTIVITY_WINDOW_DAYS = 30; // "近期活跃机会"：最近多少天内的跟进记录会被扫描关键词
+const ACTIVE_OPPORTUNITY_KEYWORDS = ['quotation', 'quote', 'sample', 'testing', 'test', 'pi', 'order', 'confirm', 'confirmed', '报价', '样品', '测试', '订单', '确认'];
+
+// ---- 新增："沉睡高价值客户"判定用到的规则 ----
+const HIGH_VALUE_LEVELS = ['金牌🥇', '银牌🥈']; // 按客户等级判断"高价值"
+const HIGH_VALUE_INTENTIONS = ['高意向🔥', '中意向⭐']; // 按意向判断"高价值"
+const DORMANT_CONTACT_STALE_DAYS = 30; // 高价值客户超过多少天没联系算沉睡
+const DORMANT_ORDER_STALE_DAYS = 60; // 老客户超过多少天没下单算沉睡（这份名单单独用的阈值，比lapsedReturning的90天更敏感）
+
+async function fetchJsonbinRecord(binId, masterKey) {
+  const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
+    headers: { 'X-Master-Key': masterKey },
+  });
+  if (!res.ok) throw new Error(`读取jsonbin(${binId})失败，状态码${res.status}`);
+  const json = await res.json();
+  return json.record || {};
+}
+
+function todayStr() {
+  return new Date().toISOString().split('T')[0];
+}
+
+async function buildCrmDigest(masterKey) {
+  const [crmRecord, orderRecord, quoteRecord] = await Promise.all([
+    fetchJsonbinRecord(CRM_BIN_ID, masterKey),
+    fetchJsonbinRecord(CUSTOMER_ORDER_BIN_ID_FOR_DIGEST, masterKey),
+    fetchJsonbinRecord(QUOTATION_BIN_ID_FOR_DIGEST, masterKey),
+  ]);
+  const clients = Array.isArray(crmRecord.clients) ? crmRecord.clients : [];
+  const orders = Array.isArray(orderRecord.orders) ? orderRecord.orders : [];
+  const quotes = Array.isArray(quoteRecord.quotes) ? quoteRecord.quotes : [];
+  const today = todayStr();
+
+  function computeOrderStats(linkedCompany) {
+    if (!linkedCompany) return { count: 0, lastOrderDate: null };
+    const matching = orders.filter(o => !o.deleted && o.customerCompany === linkedCompany);
+    const count = matching.length;
+    const lastOrderDate = matching.reduce((max, o) => (o.orderDate && o.orderDate > max ? o.orderDate : max), '');
+    return { count, lastOrderDate: lastOrderDate || null };
+  }
+
+  function computeQuoteStats(linkedCompany) {
+    if (!linkedCompany) return { count: 0, lastQuoteDate: null };
+    const matching = quotes.filter(q => !q.deleted && q.customerCompany === linkedCompany);
+    const count = matching.length;
+    const lastQuoteDate = matching.reduce((max, q) => (q.quoteDate && q.quoteDate > max ? q.quoteDate : max), '');
+    return { count, lastQuoteDate: lastQuoteDate || null };
+  }
+
+  function computeClassification(client) {
+    const stats = computeOrderStats(client.linkedCustomerCompany);
+    const autoLabel = stats.count === 0 ? '潜在客户' : (stats.count === 1 ? '样品客户' : '老客户');
+    if (client.classOverride) {
+      return { label: client.classOverride, orderCount: stats.count, lastOrderDate: stats.lastOrderDate };
+    }
+    return { label: autoLabel, orderCount: stats.count, lastOrderDate: stats.lastOrderDate };
+  }
+
+  function needsFollowUpReminder(client, classification, lastFollowUpDate) {
+    if (classification.label !== '老客户' && classification.label !== '样品客户') return false;
+    const cycleDays = client.followUpCycleDays ? parseInt(client.followUpCycleDays) : DEFAULT_FOLLOW_UP_CYCLE_DAYS;
+    const lastOrderDate = classification.lastOrderDate;
+    if (!lastOrderDate) return false;
+    const daysSince = Math.floor((new Date(today) - new Date(lastOrderDate)) / 86400000);
+    if (daysSince <= cycleDays) return false;
+    // 跟进过就不再提醒：最近一次跟进距今没超过周期，说明已经在跟，不再算"流失待召回"
+    if (lastFollowUpDate) {
+      const daysSinceFollow = Math.floor((new Date(today) - new Date(lastFollowUpDate)) / 86400000);
+      if (daysSinceFollow <= cycleDays) return false;
+    }
+    return true;
+  }
+
+  function needsLeadFollowUp(client, classification) {
+    if (classification.label !== '潜在客户') return false;
+    if (client.nextFollowDate) return false;
+    if (client.inPublicPool) return false;
+    const followHistory = Array.isArray(client.followHistory) ? client.followHistory : [];
+    if (followHistory.length === 0) return false;
+    const lastDate = followHistory.reduce((max, f) => (f.date && f.date > max ? f.date : max), '');
+    if (!lastDate) return false;
+    const daysSince = Math.floor((new Date(today) - new Date(lastDate)) / 86400000);
+    return daysSince > LEAD_STALE_DAYS;
+  }
+
+  // "近期活跃机会"：最近有报价、或者最近跟进记录里出现业务动作关键词，
+  // 不看分类（潜在/样品/老客户都可能符合），交给AI结合跟进记录原文自己判断该不该跟
+  function hasRecentActiveSignal(client, quoteStats, followHistory) {
+    if (quoteStats.lastQuoteDate) {
+      const daysSinceQuote = Math.floor((new Date(today) - new Date(quoteStats.lastQuoteDate)) / 86400000);
+      if (daysSinceQuote <= RECENT_QUOTE_WINDOW_DAYS) return true;
+    }
+    for (const f of followHistory) {
+      if (!f.date) continue;
+      const daysSince = Math.floor((new Date(today) - new Date(f.date)) / 86400000);
+      if (daysSince <= RECENT_ACTIVITY_WINDOW_DAYS) {
+        const noteLower = (f.note || '').toLowerCase();
+        if (ACTIVE_OPPORTUNITY_KEYWORDS.some(kw => noteLower.includes(kw))) return true;
+      }
+    }
+    return false;
+  }
+
+  // ---- 新增：判断某个客户的"下次跟进日期"是否已经过期（而不是只看是否等于今天） ----
+  function isFollowUpOverdue(client) {
+    if (!client.nextFollowDate) return false;
+    return client.nextFollowDate < today; // 字符串按日期格式(YYYY-MM-DD)比较，早于今天就是过期
+  }
+
+  // ---- 新增："沉睡高价值客户"判定：满足其一就算——
+  //   A. 客户等级是金牌/银牌，或者意向是高/中意向，且超过 DORMANT_CONTACT_STALE_DAYS 天没有任何联系记录
+  //   B. 分类是老客户，且超过 DORMANT_ORDER_STALE_DAYS 天没有新订单
+  // 这份名单跟 lapsedReturningCustomers / staleLeads 可能有重叠，是故意的——
+  // 目的是用更敏感的阈值+等级/意向过滤，把可能被原有两份名单漏掉的高价值客户单独点出来。
+  function needsDormantHighValueReminder(client, classification, lastFollowUpDate, overdue) {
+    const isHighValue = HIGH_VALUE_LEVELS.includes(client.clientLevel || '') || HIGH_VALUE_INTENTIONS.includes(client.intention || '');
+
+    const daysSinceContact = lastFollowUpDate
+      ? Math.floor((new Date(today) - new Date(lastFollowUpDate)) / 86400000)
+      : null;
+    const contactStale = isHighValue && (daysSinceContact === null || daysSinceContact > DORMANT_CONTACT_STALE_DAYS);
+
+    let orderStale = false;
+    if (classification.label === '老客户') {
+      const lastOrderDate = classification.lastOrderDate;
+      const daysSinceOrder = lastOrderDate
+        ? Math.floor((new Date(today) - new Date(lastOrderDate)) / 86400000)
+        : null;
+      // 跟进过就不算沉睡：最近一次跟进距今也超过同样天数，才算"老客户沉睡"
+      const followRecent = daysSinceContact !== null && daysSinceContact <= DORMANT_ORDER_STALE_DAYS;
+      orderStale = (daysSinceOrder === null || daysSinceOrder > DORMANT_ORDER_STALE_DAYS) && !followRecent;
+    }
+
+    // 已经在"下次跟进日期已过期"里被点名的，这里不再重复判一次联系天数——overdue本身就是更明确的信号
+    return overdue || contactStale || orderStale;
+  }
+
+  const dueToday = [];
+  const overdueFollowUps = [];
+  const lapsedReturningCustomers = [];
+  const staleLeads = [];
+  const activeOpportunities = [];
+  const dormantHighValue = [];
+
+  clients.filter(c => !c.deleted && !c.inPublicPool).forEach(c => {
+    const cls = computeClassification(c);
+    const quoteStats = computeQuoteStats(c.linkedCustomerCompany);
+    const contacts = Array.isArray(c.contacts) && c.contacts.length ? c.contacts : (c.name ? [{ name: c.name }] : []);
+    const primaryContact = contacts.length ? contacts[0].name : '';
+    const followHistorySorted = (Array.isArray(c.followHistory) ? c.followHistory.slice() : [])
+      .sort((a, b) => (b.date || '').localeCompare(a.date || '')); // 最新在前
+    const lastFollowUpDate = followHistorySorted.length ? followHistorySorted[0].date || null : null;
+    const recentFollowHistory = followHistorySorted.slice(0, 5).map(f => ({ date: f.date || '', note: f.note || '' }));
+
+    const enrichedBase = {
+      company: c.company || '',
+      primaryContact,
+      country: c.country || '',
+      customer_level: c.clientLevel || '',
+      intention: c.intention || '',
+      classification: cls.label,
+      last_quotation_date: quoteStats.lastQuoteDate,
+      last_order_date: cls.lastOrderDate,
+      last_contact_date: lastFollowUpDate,
+      recent_follow_history: recentFollowHistory,
+      next_followup_date: c.nextFollowDate || null,
+      next_action: c.nextAction || '',
+    };
+
+    const overdue = isFollowUpOverdue(c);
+
+    if (c.nextFollowDate === today) {
+      dueToday.push({ ...enrichedBase, industry: c.industry || '' });
+    }
+
+    // 新增：下次跟进日期已经过期（之前的版本里这类客户在任何名单里都查不到）
+    if (overdue) {
+      const overdueDays = Math.floor((new Date(today) - new Date(c.nextFollowDate)) / 86400000);
+      overdueFollowUps.push({ ...enrichedBase, industry: c.industry || '', overdueDays });
+    }
+
+    if (needsFollowUpReminder(c, cls, lastFollowUpDate)) {
+      const cycleDays = c.followUpCycleDays ? parseInt(c.followUpCycleDays) : DEFAULT_FOLLOW_UP_CYCLE_DAYS;
+      const daysSince = cls.lastOrderDate ? Math.floor((new Date(today) - new Date(cls.lastOrderDate)) / 86400000) : null;
+      lapsedReturningCustomers.push({ ...enrichedBase, daysSinceLastOrder: daysSince, followUpCycleDays: cycleDays });
+    }
+
+    if (needsLeadFollowUp(c, cls)) {
+      const daysSince = lastFollowUpDate ? Math.floor((new Date(today) - new Date(lastFollowUpDate)) / 86400000) : null;
+      staleLeads.push({ ...enrichedBase, industry: c.industry || '', daysSinceLastFollowUp: daysSince });
+    }
+
+    if (hasRecentActiveSignal(c, quoteStats, followHistorySorted)) {
+      activeOpportunities.push({ ...enrichedBase, industry: c.industry || '' });
+    }
+
+    if (needsDormantHighValueReminder(c, cls, lastFollowUpDate, overdue)) {
+      const daysSinceLastContact = lastFollowUpDate ? Math.floor((new Date(today) - new Date(lastFollowUpDate)) / 86400000) : null;
+      dormantHighValue.push({ ...enrichedBase, industry: c.industry || '', daysSinceLastContact, nextFollowDateOverdue: overdue });
+    }
+  });
+
+  // 沉睡高价值客户按"距上次联系天数"从多到少排序（没联系过的排最前面），方便优先处理最久没理的
+  dormantHighValue.sort((a, b) => {
+    const da = a.daysSinceLastContact == null ? Infinity : a.daysSinceLastContact;
+    const db = b.daysSinceLastContact == null ? Infinity : b.daysSinceLastContact;
+    return db - da;
+  });
+
+  return {
+    generatedAt: today,
+    summary: {
+      dueTodayCount: dueToday.length,
+      overdueFollowUpCount: overdueFollowUps.length,
+      lapsedReturningCount: lapsedReturningCustomers.length,
+      staleLeadCount: staleLeads.length,
+      activeOpportunityCount: activeOpportunities.length,
+      dormantHighValueCount: dormantHighValue.length,
+    },
+    dueToday,
+    overdueFollowUps,
+    lapsedReturningCustomers,
+    staleLeads,
+    activeOpportunities,
+    dormantHighValue,
+    dataNotes: 'CRM里保存的是事实（跟进记录原文、报价/订单日期），不会把"当前询盘状态""报价是否被接受""样品状态"这些硬编码成一个字段——因为同一个客户可能同时有多个项目处在不同阶段，单一字段容易失真。请结合每条记录里的 recent_follow_history 原文（最多5条，按时间倒序）自己判断当前状态和下一步动作。activeOpportunities这份名单是"最近14天有报价、或最近30天跟进记录里出现报价/样品/测试/订单/确认等关键词"的客户，可能跟其他几份名单有重叠，仅供参考，具体要不要跟进还是要看记录原文。overdueFollowUps是"设置过下次跟进日期、但那个日期已经过去"的客户（旧版本里这类客户哪份名单都查不到，属于历史漏洞修复）。dormantHighValue是"沉睡高价值客户"：金牌/银牌或高/中意向客户超过30天没任何联系记录，或者老客户超过60天没新订单，满足任意一条就会出现，可能跟lapsedReturningCustomers/staleLeads重叠（阈值更敏感、且叠加了等级/意向过滤），按距上次联系天数从久到近排序。',
+  };
+}
+
+// 单客户详情：需要深入了解某一个客户时用，用公司名做key（系统里没有正式的customer_id）
+async function buildCustomerDetail(masterKey, companyName) {
+  const [crmRecord, orderRecord, quoteRecord] = await Promise.all([
+    fetchJsonbinRecord(CRM_BIN_ID, masterKey),
+    fetchJsonbinRecord(CUSTOMER_ORDER_BIN_ID_FOR_DIGEST, masterKey),
+    fetchJsonbinRecord(QUOTATION_BIN_ID_FOR_DIGEST, masterKey),
+  ]);
+  const clients = Array.isArray(crmRecord.clients) ? crmRecord.clients : [];
+  const orders = Array.isArray(orderRecord.orders) ? orderRecord.orders : [];
+  const quotes = Array.isArray(quoteRecord.quotes) ? quoteRecord.quotes : [];
+
+  const client = clients.find(c => !c.deleted && c.company === companyName);
+  if (!client) return null;
+
+  const contacts = Array.isArray(client.contacts)
+    ? client.contacts.map(p => ({ name: p.name || '', title: p.title || '' })) // 邮箱/电话不返回，减少个人信息暴露给外部AI服务
+    : [];
+
+  const matchingOrders = orders.filter(o => !o.deleted && o.customerCompany === client.linkedCustomerCompany);
+  const matchingQuotes = quotes.filter(q => !q.deleted && q.customerCompany === client.linkedCustomerCompany);
+  const orderCount = matchingOrders.length;
+  const lastOrderDate = matchingOrders.reduce((max, o) => (o.orderDate && o.orderDate > max ? o.orderDate : max), '') || null;
+  const classification = client.classOverride || (orderCount === 0 ? '潜在客户' : (orderCount === 1 ? '样品客户' : '老客户'));
+
+  const followHistory = Array.isArray(client.followHistory) ? client.followHistory.slice().reverse() : [];
+
+  return {
+    company: client.company || '',
+    country: client.country || '',
+    industry: client.industry || '',
+    productLine: client.productLine || '',
+    customer_level: client.clientLevel || '',
+    intention: client.intention || '',
+    source: client.source || '',
+    classification,
+    contacts,
+    order_count: orderCount,
+    last_order_date: lastOrderDate,
+    quotation_count: matchingQuotes.length,
+    next_followup_date: client.nextFollowDate || null,
+    next_action: client.nextAction || '',
+    recent_follow_history: followHistory.slice(0, 10).map(f => ({ date: f.date, note: f.note })),
+    dataNotes: 'current_inquiry(当前进行中询盘)、quotation_status(报价是否被接受/拒绝)、sample_status(样品状态)这几个字段目前系统里没有单独跟踪，不在返回结果里。如需查看完整的报价/订单往来记录，请调用 /gpt/customer/{company}/timeline。',
+  };
+}
+
+// 单客户完整时间线：跟进记录+报价记录+订单记录合并按时间排序
+async function buildCustomerTimeline(masterKey, companyName) {
+  const [crmRecord, orderRecord, quoteRecord] = await Promise.all([
+    fetchJsonbinRecord(CRM_BIN_ID, masterKey),
+    fetchJsonbinRecord(CUSTOMER_ORDER_BIN_ID_FOR_DIGEST, masterKey),
+    fetchJsonbinRecord(QUOTATION_BIN_ID_FOR_DIGEST, masterKey),
+  ]);
+  const clients = Array.isArray(crmRecord.clients) ? crmRecord.clients : [];
+  const orders = Array.isArray(orderRecord.orders) ? orderRecord.orders : [];
+  const quotes = Array.isArray(quoteRecord.quotes) ? quoteRecord.quotes : [];
+
+  const client = clients.find(c => !c.deleted && c.company === companyName);
+  const linkedCompany = client ? client.linkedCustomerCompany : companyName;
+
+  const events = [];
+
+  if (client) {
+    (client.followHistory || []).forEach(f => {
+      events.push({ date: f.date || '', type: 'follow_up', summary: f.note || '' });
+    });
+  }
+
+  quotes.filter(q => !q.deleted && q.customerCompany === linkedCompany).forEach(q => {
+    const itemCount = (q.items || []).length;
+    const totalAmount = (q.items || []).reduce((s, it) => s + (parseFloat(it.amount) || 0), 0);
+    events.push({
+      date: q.quoteDate || '',
+      type: 'quotation',
+      summary: `报价单${q.quoteNo}，${q.series}，${itemCount}条货品${totalAmount ? `，合计${totalAmount.toFixed(2)} ${q.currency || 'USD'}` : ''}`,
+    });
+  });
+
+  orders.filter(o => !o.deleted && o.customerCompany === linkedCompany).forEach(o => {
+    const totalAmount = (o.items || []).reduce((s, it) => s + (parseFloat(it.amount) || 0), 0);
+    events.push({
+      date: o.orderDate || '',
+      type: 'order',
+      summary: `订单${o.orderNo}，${o.completed ? '已完成' : '未完成'}${totalAmount ? `，合计${totalAmount.toFixed(2)} ${o.currency || 'USD'}` : ''}`,
+    });
+  });
+
+  events.sort((a, b) => (b.date || '').localeCompare(a.date || '')); // 最新的排前面
+
+  return {
+    company: companyName,
+    eventCount: events.length,
+    events,
+    dataNotes: '这里的金额是报价/订单里给客户的售价，不包含内部采购成本；如果这个公司名在CRM里没有关联下单系统客户，报价和订单记录可能查不全。',
+  };
+}
+
+// ---- DeepSeek（深度求索，默认首选：便宜、国内可直接支付宝/微信充值、原生支持JSON强制输出）----
+async function callDeepSeek(requestData, env) {
+  const KEY = env.DEEPSEEK_API_KEY;
+  if (!KEY) throw new Error('还没配置 DEEPSEEK_API_KEY，请在Cloudflare后台的Worker环境变量里添加');
+  const res = await fetchWithTimeout('https://api.deepseek.com/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      messages: [
+        { role: 'system', content: requestData.systemPrompt },
+        { role: 'user', content: requestData.userMessage },
+      ],
+      response_format: { type: 'json_object' },
+      max_tokens: 8000, // 给足够空间应对一次性解析二三十个型号的大批量RFQ，避免被截断
+      temperature: 0.2,
+    }),
+  });
+  if (!res.ok) throw new Error(`DeepSeek接口返回错误(状态码${res.status})：${(await res.text()).slice(0, 300)}`);
+  const data = await res.json();
+  return extractOpenAiCompatibleText(data);
+}
+
+// ---- 智谱GLM（bigmodel.cn，备选，glm-4-flash轻量版几乎不要钱）----
+async function callZhipu(requestData, env) {
+  const KEY = env.ZHIPU_API_KEY;
+  if (!KEY) throw new Error('还没配置 ZHIPU_API_KEY，请在Cloudflare后台的Worker环境变量里添加');
+  const res = await fetchWithTimeout('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'glm-4-flash',
+      messages: [
+        { role: 'system', content: requestData.systemPrompt },
+        { role: 'user', content: requestData.userMessage },
+      ],
+      response_format: { type: 'json_object' },
+      max_tokens: 8000, // 给足够空间应对一次性解析二三十个型号的大批量RFQ，避免被截断
+      temperature: 0.2,
+    }),
+  });
+  if (!res.ok) throw new Error(`智谱接口返回错误(状态码${res.status})：${(await res.text()).slice(0, 300)}`);
+  const data = await res.json();
+  return extractOpenAiCompatibleText(data);
+}
+
+// ---- 通义千问（阿里云DashScope的OpenAI兼容模式，备选，支付宝生态充值最方便）----
+async function callQwen(requestData, env) {
+  const KEY = env.QWEN_API_KEY;
+  if (!KEY) throw new Error('还没配置 QWEN_API_KEY，请在Cloudflare后台的Worker环境变量里添加');
+  const res = await fetchWithTimeout('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'qwen-plus',
+      messages: [
+        { role: 'system', content: requestData.systemPrompt },
+        { role: 'user', content: requestData.userMessage },
+      ],
+      response_format: { type: 'json_object' },
+      max_tokens: 8000, // 给足够空间应对一次性解析二三十个型号的大批量RFQ，避免被截断
+      temperature: 0.2,
+    }),
+  });
+  if (!res.ok) throw new Error(`通义千问接口返回错误(状态码${res.status})：${(await res.text()).slice(0, 300)}`);
+  const data = await res.json();
+  return extractOpenAiCompatibleText(data);
+}
